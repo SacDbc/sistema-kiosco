@@ -58,9 +58,12 @@
     <!-- SECCIÓN STOCK / INVENTARIO -->
     <section id="seccion-stock" class="seccion">
         <div class="modulo-stock">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                 <h2>Inventario de Productos</h2>
-                <button class="btn-crear" onclick="abrirModalCrear()">➕ Nuevo Producto</button>
+                <div>
+                    <button onclick="abrirModalCategorias()" style="background:#6c757d; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer; margin-right:5px;">🏷️ Gestor de Categorías</button>
+                    <button class="btn-crear" onclick="abrirModalCrear()">➕ Nuevo Producto</button>
+                </div>
             </div>
 
             <!-- Panel de Aumento Masivo por Porcentaje -->
@@ -95,9 +98,12 @@
 <div id="modal-producto" class="modal">
     <div class="modal-contenido">
         <h2 id="modal-titulo-prod">Nuevo Producto</h2>
-        <input type="hidden" id="p-id"> <!-- ID oculto para edición -->
+        <input type="hidden" id="p-id">
         <input type="text" id="p-nombre" placeholder="Nombre (Ej: Marlboro Red 20)">
-        <input type="text" id="p-categoria" placeholder="Categoría (Ej: Cigarrillos, Bebidas)">
+        
+        <label style="font-size:12px; font-weight:bold; color:#666;">CATEGORÍA:</label>
+        <select id="p-categoria-select" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px; outline:none;"></select>
+
         <input type="number" id="p-precio" placeholder="Precio ($)">
         <input type="number" id="p-stock" placeholder="Stock Inicial">
         <input type="text" id="p-codigo" placeholder="Código de Barras (Opcional)">
@@ -105,6 +111,24 @@
         <div class="modal-acciones">
             <button class="btn-guardar" onclick="guardarProducto()">Guardar</button>
             <button class="btn-cancelar" onclick="cerrarModal()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editor de Categorías -->
+<div id="modal-categorias" class="modal">
+    <div class="modal-contenido">
+        <h2>Gestor de Categorías</h2>
+        
+        <div style="display:flex; gap:5px;">
+            <input type="text" id="nueva-cat-nombre" placeholder="Nueva Categoría (Ej: Galletitas)" style="flex:1;">
+            <button onclick="crearCategoria()" style="background:#28a745; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;">➕ Crear</button>
+        </div>
+
+        <ul id="lista-categorias-modal" style="list-style:none; margin-top:10px; max-height:200px; overflow-y:auto; border:1px solid #eee; border-radius:5px;"></ul>
+
+        <div class="modal-acciones">
+            <button class="btn-cancelar" onclick="cerrarModalCategorias()">Cerrar</button>
         </div>
     </div>
 </div>
