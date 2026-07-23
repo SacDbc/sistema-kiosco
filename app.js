@@ -332,14 +332,15 @@ function renderizarTablaStock(lista) {
     });
 }
 
-// Buscador Inteligente en vivo para la pestaña de Stock (Corregido)
+// Buscador Inteligente en vivo para la pestaña de Stock (Compatible con Celulares)
 function filtrarTablaStock() {
     const input = document.getElementById('buscador-stock');
     if (!input) return;
 
+    // Normalizamos el texto quitando espacios de más
     const texto = input.value.toLowerCase().trim();
     
-    if (!texto) {
+    if (texto === '') {
         renderizarTablaStock(productosGlobales);
         return;
     }
