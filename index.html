@@ -59,6 +59,7 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                 <h2>Inventario de Productos</h2>
                 <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                    <button onclick="filtrarStockBajo()" style="background:#ffc107; color:#333; border:none; padding:10px 12px; border-radius:5px; font-weight:bold; cursor:pointer;">⚠️ Ver Bajo Stock / Reponer</button>
                     <button onclick="exportarProductosCSV()" style="background:#28a745; color:white; border:none; padding:10px 12px; border-radius:5px; font-weight:bold; cursor:pointer;">📤 Exportar Excel</button>
                     <button onclick="abrirModalImportar()" style="background:#17a2b8; color:white; border:none; padding:10px 12px; border-radius:5px; font-weight:bold; cursor:pointer;">📥 Importar</button>
                     <button onclick="abrirModalCategorias()" style="background:#6c757d; color:white; border:none; padding:10px 12px; border-radius:5px; font-weight:bold; cursor:pointer;">🏷️ Categorías</button>
@@ -154,7 +155,12 @@
         <select id="p-categoria-select" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px; outline:none;"></select>
 
         <input type="number" id="p-precio" placeholder="Precio ($)">
-        <input type="number" id="p-stock" placeholder="Stock Inicial">
+        
+        <div style="display:flex; gap:10px;">
+            <input type="number" id="p-stock" placeholder="Stock Actual" style="flex:1;">
+            <input type="number" id="p-stock-minimo" placeholder="Stock Mínimo (Alerta)" value="3" style="flex:1;">
+        </div>
+
         <input type="text" id="p-codigo" placeholder="Código de Barras (Opcional)">
         
         <div class="modal-acciones">
@@ -172,17 +178,10 @@
             <strong>📋 Formato del archivo Excel/CSV:</strong>
             <p style="margin-top:5px;">El archivo debe guardarse como <strong>.CSV (Delimitado por comas)</strong> y contener exactamente estas cabeceras en la primera fila:</p>
             <code style="background:#e9ecef; display:block; padding:8px; margin:8px 0; border-radius:4px; font-weight:bold;">nombre, categoria, precio, stock, codigo_barras</code>
-            <ul style="padding-left:20px; color:#555;">
-                <li><code>nombre</code>: Texto obligatorio (Ej: Coca Cola 500ml)</li>
-                <li><code>categoria</code>: Opcional (Ej: Bebidas). Si se deja vacío dirá General</li>
-                <li><code>precio</code>: Número obligatorio (Ej: 1500)</li>
-                <li><code>stock</code>: Número opcional (Ej: 20)</li>
-                <li><code>codigo_barras</code>: Texto opcional (Ej: 779123456)</li>
-            </ul>
         </div>
 
         <div style="margin-top:10px;">
-            <button onclick="descargarPlantillaCSV()" style="background:#6c757d; color:white; border:none; padding:8px 12px; border-radius:4px; font-size:12px; cursor:pointer; font-weight:bold;">📄 Descargar Plantilla de Ejemplo (.CSV)</button>
+            <button onclick="descargarPlantillaCSV()" style="background:#6c757d; color:white; border:none; padding:8px 12px; border-radius:4px; font-size:12px; cursor:pointer; font-weight:bold;">📄 Descargar Plantilla (.CSV)</button>
         </div>
 
         <div style="margin-top:15px;">
