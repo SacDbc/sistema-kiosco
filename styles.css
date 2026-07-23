@@ -444,3 +444,33 @@ header h1 {
         width: 100% !important;
     }
 }
+
+/* Estilos para el Ticket de Impresión */
+#ticket-impresion {
+    display: none;
+}
+
+/* Reglas especiales cuando se manda a IMPRIMIR */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #ticket-impresion, #ticket-impresion * {
+        visibility: visible;
+    }
+    #ticket-impresion {
+        display: block !important;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        max-width: 80mm; /* Tamaño estándar de papel térmico */
+        padding: 10px;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 12px;
+        color: #000;
+    }
+    .no-print {
+        display: none !important;
+    }
+}
