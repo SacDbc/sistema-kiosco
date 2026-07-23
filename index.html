@@ -3,32 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kiosco - Panel de Ventas</title>
+    <title>KioscoEnLínea - Sistema de Gestión</title>
     <!-- Librería oficial de Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
-        body { background-color: #f4f6f9; color: #333; padding: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
-        header { grid-column: span 2; background-color: #007bff; color: white; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .btn-header { background: #17a2b8; color: white; border: none; padding: 8px 15px; font-weight: bold; border-radius: 5px; cursor: pointer; }
-        .btn-header:hover { background: #138496; }
-        .modulo-ventas, .modulo-carrito { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        body { background-color: #f4f6f9; color: #333; }
+
+        /* Barra de Navegación Principal */
+        header { background-color: #007bff; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .nav-tabs { display: flex; gap: 10px; }
+        .tab-btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 18px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .tab-btn:hover, .tab-btn.activo { background: white; color: #007bff; }
+
+        .container { max-width: 1100px; margin: 20px auto; padding: 0 15px; }
+
+        /* Estilos Módulo de Ventas */
+        .grid-ventas { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        .modulo-ventas, .modulo-carrito, .modulo-stock { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .buscador { width: 100%; padding: 12px; margin-bottom: 20px; border: 2px solid #007bff; border-radius: 5px; font-size: 16px; outline: none; }
         .lista-productos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .producto-card { border: 1px solid #eee; padding: 15px; border-radius: 5px; text-align: center; cursor: pointer; transition: 0.2s; position: relative; }
+        .producto-card { border: 1px solid #eee; padding: 15px; border-radius: 5px; text-align: center; cursor: pointer; transition: 0.2s; }
         .producto-card:hover { border-color: #007bff; background-color: #f0f7ff; }
         .item-carrito { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
         .total-box { margin-top: 20px; font-size: 22px; font-weight: bold; text-align: right; color: #28a745; }
         .btn-cobrar { width: 100%; background-color: #28a745; color: white; border: none; padding: 15px; font-size: 18px; font-weight: bold; border-radius: 5px; margin-top: 15px; cursor: pointer; }
         .btn-cobrar:hover { background-color: #218838; }
-        .btn-cobrar:disabled { background-color: #ccc; cursor: not-allowed; }
 
-        /* Ventana Modal para Alta de Productos */
+        /* Estilos Módulo de Stock (Tabla) */
+        .header-stock { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .tabla-stock { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .tabla-stock th, .tabla-stock td { border: 1px solid #eee; padding: 12px; text-align: left; }
+        .tabla-stock th { background-color: #f8f9fa; }
+        .btn-crear { background: #28a745; color: white; border: none; padding: 10px 15px; font-weight: bold; border-radius: 5px; cursor: pointer; }
+
+        /* Ocultar secciones inactivas */
+        .seccion { display: none; }
+        .seccion.activa { display: block; }
+
+        /* Modal */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
         .modal-contenido { background: white; padding: 25px; border-radius: 8px; width: 350px; display: flex; flex-direction: column; gap: 12px; }
-        .modal-contenido h2 { margin-bottom: 10px; font-size: 20px; }
-        .modal-contenido input { padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; }
+        .modal-contenido input { padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
         .modal-acciones { display: flex; gap: 10px; margin-top: 10px; }
         .btn-guardar { flex: 1; background: #28a745; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; }
         .btn-cancelar { flex: 1; background: #dc3545; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; }
@@ -36,41 +52,68 @@
 </head>
 <body>
 
+<header>
+    <h1>🏪 KioscoEnLínea</h1>
+    <nav class="nav-tabs">
+        <button id="btn-tab-ventas" class="tab-btn activo" onclick="cambiarPestaña('ventas')">🛒 Punto de Venta</button>
+        <button id="btn-tab-stock" class="tab-btn" onclick="cambiarPestaña('stock')">📦 Control de Stock</button>
+    </nav>
+</header>
+
 <div class="container">
-    <header>
-        <h1>🏪 KioscoEnLínea (Demo)</h1>
-        <div>
-            <button class="btn-header" onclick="abrirModal()">➕ Agregar Producto</button>
-            <span style="margin-left: 10px;">Cajero: <strong>Empleado 1</strong></span>
-        </div>
-    </header>
 
-    <!-- Módulo de Productos -->
-    <main class="modulo-ventas">
-        <input type="text" id="buscador" class="buscador" placeholder="🔍 Pistoleá el código de barras o buscá por nombre..." autofocus onkeypress="manejarEnter(event)" onkeyup="filtrarProductos()">
-        <div id="contenedor-productos" class="lista-productos">
-            <p>Cargando productos desde Supabase...</p>
-        </div>
-    </main>
+    <!-- ================= SECCIÓN 1: VENTAS ================= -->
+    <section id="seccion-ventas" class="seccion activa">
+        <div class="grid-ventas">
+            <main class="modulo-ventas">
+                <input type="text" id="buscador" class="buscador" placeholder="🔍 Pistoleá el código de barras o buscá por nombre..." autofocus onkeypress="manejarEnter(event)" onkeyup="filtrarProductos()">
+                <div id="contenedor-productos" class="lista-productos">
+                    <p>Cargando productos...</p>
+                </div>
+            </main>
 
-    <!-- Módulo de Ticket / Carrito -->
-    <aside class="modulo-carrito">
-        <h2>Detalle de Venta</h2>
-        <div id="carrito-items">
-            <!-- Productos seleccionados -->
+            <aside class="modulo-carrito">
+                <h2>Detalle de Venta</h2>
+                <div id="carrito-items"></div>
+                <div class="total-box">
+                    Total: $<span id="total-monto">0</span>
+                </div>
+                <button id="btn-cobrar" class="btn-cobrar" onclick="cobrar()">💵 COBRAR</button>
+            </aside>
         </div>
-        <div class="total-box">
-            Total: $<span id="total-monto">0</span>
+    </section>
+
+    <!-- ================= SECCIÓN 2: CONTROL DE STOCK ================= -->
+    <section id="seccion-stock" class="seccion">
+        <div class="modulo-stock">
+            <div class="header-stock">
+                <h2>Inventario de Productos</h2>
+                <button class="btn-crear" onclick="abrirModal()">➕ Nuevo Producto</button>
+            </div>
+
+            <table class="tabla-stock">
+                <thead>
+                    <tr>
+                        <th>Código Barcode</th>
+                        <th>Producto</th>
+                        <th>Precio</th>
+                        <th>Stock Actual</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-body-stock">
+                    <!-- Se cargará dinámicamente -->
+                </tbody>
+            </table>
         </div>
-        <button id="btn-cobrar" class="btn-cobrar" onclick="cobrar()">💵 COBRAR</button>
-    </aside>
+    </section>
+
 </div>
 
-<!-- Modal / Ventana Emergente de Carga de Producto -->
+<!-- Modal / Ventana Emergente para Nuevo Producto -->
 <div id="modal-producto" class="modal">
     <div class="modal-contenido">
         <h2>Nuevo Producto</h2>
-        <input type="text" id="p-nombre" placeholder="Nombre del producto (Ej: Coca 500ml)">
+        <input type="text" id="p-nombre" placeholder="Nombre (Ej: Coca 500ml)">
         <input type="number" id="p-precio" placeholder="Precio ($)">
         <input type="number" id="p-stock" placeholder="Stock Inicial">
         <input type="text" id="p-codigo" placeholder="Código de Barras (Opcional)">
@@ -83,7 +126,7 @@
 </div>
 
 <script>
-    // 1. Configuración de conexión con Supabase con tus credenciales estáticas
+    // Configuración de Supabase
     const SUPABASE_URL = 'https://xsaqhiaiwgqfpghpxarl.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_85wjOI6fSpOsaH_Bw8Jn7Q_vP_n2JKJ';
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -91,22 +134,37 @@
     let productosGlobales = [];
     let carrito = [];
 
-    // 2. Traer productos desde Supabase
+    // Cambiar entre pestañas (Ventas / Stock)
+    function cambiarPestaña(tab) {
+        document.querySelectorAll('.seccion').forEach(s => s.classList.remove('activa'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('activo'));
+
+        if (tab === 'ventas') {
+            document.getElementById('seccion-ventas').classList.add('activa');
+            document.getElementById('btn-tab-ventas').classList.add('activo');
+            document.getElementById('buscador').focus();
+        } else {
+            document.getElementById('seccion-stock').classList.add('activa');
+            document.getElementById('btn-tab-stock').classList.add('activo');
+        }
+    }
+
+    // Traer productos desde Supabase
     async function cargarProductos() {
         const { data, error } = await db.from('productos').select('*').order('id', { ascending: true });
 
         if (error) {
             console.error('Error al cargar productos:', error);
-            document.getElementById('contenedor-productos').innerHTML = '<p>Error al conectar con la base de datos.</p>';
             return;
         }
 
         productosGlobales = data;
-        renderizarProductos(productosGlobales);
+        renderizarVistaVentas(productosGlobales);
+        renderizarTablaStock(productosGlobales);
     }
 
-    // 3. Dibujar productos
-    function renderizarProductos(lista) {
+    // Vista de Caja
+    function renderizarVistaVentas(lista) {
         const contenedor = document.getElementById('contenedor-productos');
         contenedor.innerHTML = '';
 
@@ -123,18 +181,32 @@
                 <h3>${prod.nombre}</h3>
                 <p>$${prod.precio}</p>
                 <small style="color: ${prod.stock > 0 ? '#666' : 'red'}; font-weight: ${prod.stock > 0 ? 'normal' : 'bold'};">
-                    ${prod.stock > 0 ? 'Stock: ' + prod.stock : 'SIN STOCK'} | Barcode: ${prod.codigo_barras || 'N/A'}
+                    ${prod.stock > 0 ? 'Stock: ' + prod.stock : 'SIN STOCK'}
                 </small>
             `;
             contenedor.appendChild(card);
         });
     }
 
-    // 4. Lógica de Alta de Productos (Modal)
-    function abrirModal() {
-        document.getElementById('modal-producto').style.display = 'flex';
+    // Vista de Tabla de Stock
+    function renderizarTablaStock(lista) {
+        const tbody = document.getElementById('tabla-body-stock');
+        tbody.innerHTML = '';
+
+        lista.forEach(prod => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><code>${prod.codigo_barras || 'N/A'}</code></td>
+                <td><strong>${prod.nombre}</strong></td>
+                <td>$${prod.precio}</td>
+                <td><span style="color: ${prod.stock > 0 ? 'green' : 'red'}; font-weight: bold;">${prod.stock}</span> u.</td>
+            `;
+            tbody.appendChild(tr);
+        });
     }
 
+    // Modal Producto
+    function abrirModal() { document.getElementById('modal-producto').style.display = 'flex'; }
     function cerrarModal() {
         document.getElementById('modal-producto').style.display = 'none';
         document.getElementById('p-nombre').value = '';
@@ -150,57 +222,50 @@
         const codigo = document.getElementById('p-codigo').value.trim();
 
         if (!nombre || !precio) {
-            alert("Por favor completá al menos el nombre y el precio.");
+            alert("Completa al menos el nombre y el precio.");
             return;
         }
 
-        const nuevoItem = {
-            nombre: nombre,
-            precio: precio,
-            stock: stock || 0,
-            codigo_barras: codigo || null
-        };
-
-        const { data, error } = await db.from('productos').insert([nuevoItem]);
+        const { error } = await db.from('productos').insert([{
+            nombre, precio, stock: stock || 0, codigo_barras: codigo || null
+        }]);
 
         if (error) {
-            console.error('Error al guardar:', error);
-            alert("Ocurrió un error al guardar el producto.");
+            alert("Error al guardar.");
         } else {
-            alert("¡Producto guardado exitosamente!");
+            alert("¡Producto guardado!");
             cerrarModal();
             cargarProductos();
         }
     }
 
-    // 5. Lector de Código de Barras (al presionar ENTER)
+    // Búsqueda y Lector de Barras
     function manejarEnter(e) {
         if (e.key === 'Enter') {
             const valorIngresado = document.getElementById('buscador').value.trim();
-            const productoEncontrado = productosGlobales.find(p => p.codigo_barras === valorIngresado);
+            const encontrado = productosGlobales.find(p => p.codigo_barras === valorIngresado);
 
-            if (productoEncontrado) {
-                agregarAlCarrito(productoEncontrado);
+            if (encontrado) {
+                agregarAlCarrito(encontrado);
                 document.getElementById('buscador').value = '';
-                renderizarProductos(productosGlobales);
+                renderizarVistaVentas(productosGlobales);
             }
         }
     }
 
-    // 6. Filtrar por buscador
     function filtrarProductos() {
         const texto = document.getElementById('buscador').value.toLowerCase().trim();
         const filtrados = productosGlobales.filter(p => 
             p.nombre.toLowerCase().includes(texto) || 
             (p.codigo_barras && p.codigo_barras.includes(texto))
         );
-        renderizarProductos(filtrados);
+        renderizarVistaVentas(filtrados);
     }
 
-    // 7. Lógica del carrito
+    // Carrito
     function agregarAlCarrito(producto) {
         if (producto.stock <= 0) {
-            alert("⚠️ El producto no tiene stock disponible.");
+            alert("⚠️ Producto sin stock.");
             return;
         }
         carrito.push(producto);
@@ -223,46 +288,28 @@
         document.getElementById('total-monto').innerText = total;
     }
 
-    // 8. COBRAR Y DESCONTAR STOCK REAL EN SUPABASE
+    // Cobrar
     async function cobrar() {
-        if (carrito.length === 0) {
-            alert("El carrito está vacío.");
-            return;
-        }
+        if (carrito.length === 0) return alert("Carrito vacío.");
 
         const btnCobrar = document.getElementById('btn-cobrar');
         btnCobrar.disabled = true;
         btnCobrar.innerText = "Procesando...";
 
-        try {
-            for (const prod of carrito) {
-                const nuevoStock = prod.stock - 1;
-
-                const { error } = await db
-                    .from('productos')
-                    .update({ stock: nuevoStock })
-                    .eq('id', prod.id);
-
-                if (error) {
-                    console.error(`Error actualizando stock de ${prod.nombre}:`, error);
-                }
-            }
-
-            alert("¡Venta realizada con éxito y stock actualizado!");
-            carrito = [];
-            actualizarCarritoUI();
-            await cargarProductos();
-        } catch (err) {
-            console.error('Error al procesar la venta:', err);
-            alert("Hubo un problema al procesar el cobro.");
-        } finally {
-            btnCobrar.disabled = false;
-            btnCobrar.innerText = "💵 COBRAR";
-            document.getElementById('buscador').focus();
+        for (const prod of carrito) {
+            await db.from('productos').update({ stock: prod.stock - 1 }).eq('id', prod.id);
         }
+
+        alert("¡Venta realizada!");
+        carrito = [];
+        actualizarCarritoUI();
+        await cargarProductos();
+
+        btnCobrar.disabled = false;
+        btnCobrar.innerText = "💵 COBRAR";
+        document.getElementById('buscador').focus();
     }
 
-    // Cargar productos al iniciar
     cargarProductos();
 </script>
 
