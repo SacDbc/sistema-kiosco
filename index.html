@@ -52,7 +52,7 @@
         .seccion { display: none; }
         .seccion.activa { display: block; }
 
-        /* Modal */
+        /* Modales */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
         .modal-contenido { background: white; padding: 25px; border-radius: 8px; width: 350px; display: flex; flex-direction: column; gap: 12px; }
         .modal-contenido input { padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
@@ -79,15 +79,13 @@
             <main class="modulo-ventas">
                 <!-- Buscador Principal -->
                 <div class="contenedor-buscador">
-                    <input type="text" id="buscador" class="buscador" placeholder="⚡ Pistoleá código de barras o escribí para buscar..." autofocus onkeypress="manejarEnter(event)" oninput="buscarProductosLive()">
+                    <input type="text" id="buscador" class="buscador" placeholder="⚡ Pistoleá código o busca (ej: 5*codigo para multiplicar)..." autofocus onkeypress="manejarEnter(event)" oninput="buscarProductosLive()">
                     <div id="desplegable-resultados" class="desplegable-resultados"></div>
                 </div>
 
                 <!-- Botones de Acceso Rápido / Favoritos -->
                 <div class="titulo-favoritos">⭐ Productos Rápidos</div>
-                <div id="contenedor-favoritos" class="grid-favoritos">
-                    <!-- Se arman automáticamente con los primeros productos -->
-                </div>
+                <div id="contenedor-favoritos" class="grid-favoritos"></div>
             </main>
 
             <!-- Detalle de Venta -->
@@ -137,7 +135,7 @@
 
 </div>
 
-<!-- Modal -->
+<!-- Modal Producto Nuevo -->
 <div id="modal-producto" class="modal">
     <div class="modal-contenido">
         <h2>Nuevo Producto</h2>
@@ -159,7 +157,7 @@
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let productosGlobales = [];
-    let carrito = []; // Formato: [{ id, nombre, precio, stock, cantidad }]
+    let carrito = [];
 
     function cambiarPestaña(tab) {
         document.querySelectorAll('.seccion').forEach(s => s.classList.remove('activa'));
@@ -184,7 +182,7 @@
         renderizarTablaStock(productosGlobales);
     }
 
-    // Dibujar Accesos Rápidos
+    // Dibujar Favoritos mostrando STOCK
     function renderizarFavoritos(lista) {
         const contenedor = document.getElementById('contenedor-favoritos');
         contenedor.innerHTML = '';
@@ -192,16 +190,24 @@
         lista.slice(0, 8).forEach(prod => {
             const btn = document.createElement('button');
             btn.className = 'btn-favorito';
-            btn.onclick = () => agregarAlCarrito(prod);
-            btn.innerHTML = `${prod.nombre}<br><span style="color:#28a745;">$${prod.precio}</span>`;
+            btn.onclick = () => solicitarCantidadYAgregar(prod);
+            btn.innerHTML = `
+                ${prod.nombre}<br>
+                <span style="color:#28a745;">$${prod.precio}</span><br>
+                <small style="color:${prod.stock > 0 ? '#888' : 'red'}; font-weight:normal;">Stock: ${prod.stock}</small>
+            `;
             contenedor.appendChild(btn);
         });
     }
 
-    // Búsqueda Inteligente (Live Autocomplete)
+    // Búsqueda Live mostrando STOCK
     function buscarProductosLive() {
-        const texto = document.getElementById('buscador').value.toLowerCase().trim();
+        let texto = document.getElementById('buscador').value.toLowerCase().trim();
         const desplegable = document.getElementById('desplegable-resultados');
+
+        // Si escribió el prefijo de cantidad (ej: 5* o 5x), lo omitimos solo para la búsqueda del nombre
+        if (texto.includes('*')) texto = texto.split('*')[1] || '';
+        if (texto.includes('x')) texto = texto.split('x')[1] || '';
 
         if (texto.length === 0) {
             desplegable.style.display = 'none';
@@ -223,14 +229,17 @@
             const item = document.createElement('div');
             item.className = 'item-resultado';
             item.onclick = () => {
-                agregarAlCarrito(prod);
+                solicitarCantidadYAgregar(prod);
                 document.getElementById('buscador').value = '';
                 desplegable.style.display = 'none';
                 document.getElementById('buscador').focus();
             };
             item.innerHTML = `
-                <div><strong>${prod.nombre}</strong> <small style="color:#666;">(Stock: ${prod.stock})</small></div>
-                <strong style="color:#28a745;">$${prod.precio}</strong>
+                <div>
+                    <strong>${prod.nombre}</strong><br>
+                    <small style="color:${prod.stock > 0 ? '#666' : 'red'}; font-weight:bold;">Stock disponible: ${prod.stock} u.</small>
+                </div>
+                <strong style="color:#28a745; font-size:16px;">$${prod.precio}</strong>
             `;
             desplegable.appendChild(item);
         });
@@ -238,37 +247,69 @@
         desplegable.style.display = 'block';
     }
 
-    // Lector de Barras (al presionar ENTER)
+    // Lector / Teclado con soporte para Multiplicador (Ej: 5*codigo + Enter)
     function manejarEnter(e) {
         if (e.key === 'Enter') {
-            const valor = document.getElementById('buscador').value.trim();
-            const prod = productosGlobales.find(p => p.codigo_barras === valor || p.nombre.toLowerCase() === valor.toLowerCase());
+            const valorIngresado = document.getElementById('buscador').value.trim();
+            if (!valorIngresado) return;
+
+            let cantidad = 1;
+            let terminoBusqueda = valorIngresado;
+
+            // Detectar si ingresó multiplicador con * o con x (ej: 3*779123456 o 3x779123456)
+            if (valorIngresado.includes('*')) {
+                const partes = valorIngresado.split('*');
+                cantidad = parseInt(partes[0]) || 1;
+                terminoBusqueda = partes[1].trim();
+            } else if (valorIngresado.toLowerCase().includes('x')) {
+                const partes = valorIngresado.toLowerCase().split('x');
+                cantidad = parseInt(partes[0]) || 1;
+                terminoBusqueda = partes[1].trim();
+            }
+
+            const prod = productosGlobales.find(p => 
+                (p.codigo_barras && p.codigo_barras === terminoBusqueda) || 
+                p.nombre.toLowerCase() === terminoBusqueda.toLowerCase()
+            );
 
             if (prod) {
-                agregarAlCarrito(prod);
+                agregarAlCarrito(prod, cantidad);
                 document.getElementById('buscador').value = '';
                 document.getElementById('desplegable-resultados').style.display = 'none';
             }
         }
     }
 
-    // Lógica del Carrito Mejorada (Agrupa Ítems repetidos)
-    function agregarAlCarrito(producto) {
+    // Pregunta cantidad si hace clic manual (Enter pasa directo con 1)
+    function solicitarCantidadYAgregar(producto) {
+        let cant = prompt(`¿Cuántas unidades de "${producto.nombre}" deseas agregar?`, "1");
+        if (cant !== null) {
+            cant = parseInt(cant);
+            if (!isNaN(cant) && cant > 0) {
+                agregarAlCarrito(producto, cant);
+            }
+        }
+    }
+
+    // Lógica del Carrito
+    function agregarAlCarrito(producto, cantidad = 1) {
         if (producto.stock <= 0) {
-            alert("⚠️ Producto sin stock.");
+            alert("⚠️ El producto no tiene stock disponible.");
             return;
         }
 
         const existe = carrito.find(item => item.id === producto.id);
+        const cantidadPrevias = existe ? existe.cantidad : 0;
+
+        if ((cantidadPrevias + cantidad) > producto.stock) {
+            alert(`⚠️ No podés agregar ${cantidad} unidades. Stock disponible: ${producto.stock} (ya tenés ${cantidadPrevias} en el carrito).`);
+            return;
+        }
 
         if (existe) {
-            if (existe.cantidad >= producto.stock) {
-                alert("⚠️ No podés agregar más unidades de las disponibles en stock.");
-                return;
-            }
-            existe.cantidad++;
+            existe.cantidad += cantidad;
         } else {
-            carrito.push({ ...producto, cantidad: 1 });
+            carrito.push({ ...producto, cantidad: cantidad });
         }
 
         actualizarCarritoUI();
