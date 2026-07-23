@@ -58,18 +58,24 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                 <h2>Inventario de Productos</h2>
                 <div>
-                    <button onclick="abrirModalCategorias()" style="background:#6c757d; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer; margin-right:5px;">🏷️ Gestor de Categorías</button>
+                    <button onclick="abrirModalImportar()" style="background:#17a2b8; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer; margin-right:5px;">📥 Importar Excel</button>
+                    <button onclick="abrirModalCategorias()" style="background:#6c757d; color:white; border:none; padding:10px 15px; border-radius:5px; font-weight:bold; cursor:pointer; margin-right:5px;">🏷️ Categorías</button>
                     <button class="btn-crear" onclick="abrirModalCrear()">➕ Nuevo Producto</button>
                 </div>
             </div>
 
-            <div style="background:#e7f1ff; border:1px solid #b6d4fe; padding:15px; border-radius:6px; margin-bottom:20px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                <strong>📈 Aumento Masivo por Categoría:</strong>
+            <div class="panel-aumento-masivo" style="background:#e7f1ff; border:1px solid #b6d4fe; padding:15px; border-radius:6px; margin-bottom:20px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <strong>📈 Aumento Masivo:</strong>
                 <select id="aumento-categoria" style="padding:8px; border-radius:4px; border:1px solid #ccc;">
                     <option value="">Todas las categorías</option>
                 </select>
-                <input type="number" id="aumento-porcentaje" placeholder="% Aumento (Ej: 15)" style="padding:8px; width:150px; border-radius:4px; border:1px solid #ccc;">
-                <button onclick="aplicarAumentoMasivo()" style="background:#17a2b8; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⚡ Aplicar Aumento</button>
+                <input type="number" id="aumento-porcentaje" placeholder="% Aumento (Ej: 15)" style="padding:8px; width:140px; border-radius:4px; border:1px solid #ccc;">
+                
+                <label style="font-size:13px; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                    <input type="checkbox" id="chk-redondear" checked> Redondear a $100 arriba (Ej: $2160 ➔ $2200)
+                </label>
+
+                <button onclick="aplicarAumentoMasivo()" style="background:#007bff; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⚡ Aplicar Aumento</button>
             </div>
 
             <div class="tabla-contenedor">
@@ -108,6 +114,39 @@
         <div class="modal-acciones">
             <button class="btn-guardar" onclick="guardarProducto()">Guardar</button>
             <button class="btn-cancelar" onclick="cerrarModal()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div id="modal-importar" class="modal">
+    <div class="modal-contenido" style="max-width:500px;">
+        <h2>📥 Importar Productos desde Excel</h2>
+        
+        <div style="background:#f8f9fa; border:1px solid #eee; padding:12px; border-radius:6px; font-size:13px; line-height:1.5;">
+            <strong>📋 Formato del archivo Excel/CSV:</strong>
+            <p style="margin-top:5px;">El archivo debe guardarse como <strong>.CSV (Delimitado por comas)</strong> y contener exactamente estas cabeceras en la primera fila:</p>
+            <code style="background:#e9ecef; display:block; padding:8px; margin:8px 0; border-radius:4px; font-weight:bold;">nombre, categoria, precio, stock, codigo_barras</code>
+            <ul style="padding-left:20px; color:#555;">
+                <li><code>nombre</code>: Texto obligatorio (Ej: Coca Cola 500ml)</li>
+                <li><code>categoria</code>: Opcional (Ej: Bebidas). Si se deja vacío dirá General</li>
+                <li><code>precio</code>: Número obligatorio (Ej: 1500)</li>
+                <li><code>stock</code>: Número opcional (Ej: 20)</li>
+                <li><code>codigo_barras</code>: Texto opcional (Ej: 779123456)</li>
+            </ul>
+        </div>
+
+        <div style="margin-top:10px;">
+            <button onclick="descargarPlantillaCSV()" style="background:#6c757d; color:white; border:none; padding:8px 12px; border-radius:4px; font-size:12px; cursor:pointer; font-weight:bold;">📄 Descargar Plantilla de Ejemplo (.CSV)</button>
+        </div>
+
+        <div style="margin-top:15px;">
+            <label style="font-weight:bold; font-size:13px;">Seleccioná tu archivo CSV:</label>
+            <input type="file" id="archivo-csv" accept=".csv" style="margin-top:5px; width:100%;">
+        </div>
+
+        <div class="modal-acciones">
+            <button id="btn-procesar-importacion" class="btn-guardar" onclick="procesarArchivoCSV()">🚀 Cargar Productos</button>
+            <button class="btn-cancelar" onclick="cerrarModalImportar()">Cancelar</button>
         </div>
     </div>
 </div>
