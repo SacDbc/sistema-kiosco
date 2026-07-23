@@ -117,7 +117,7 @@ header h1 {
     background-color: #f0f7ff; 
 }
 
-/* Accesos Rápido / Favoritos */
+/* Favoritos */
 .titulo-favoritos { 
     font-size: 13px; 
     font-weight: bold; 
@@ -151,7 +151,7 @@ header h1 {
     border-color: #007bff; 
 }
 
-/* Carrito / Ticket */
+/* Carrito */
 .tabla-carrito { 
     width: 100%; 
     border-collapse: collapse; 
@@ -200,18 +200,15 @@ header h1 {
     background-color: #218838; 
 }
 
-/* Tablas e Inventario */
+/* Tabla de Stock para Computadora */
 .tabla-contenedor {
     width: 100%;
-    overflow-x: auto; /* Permite scroll horizontal fluido en la tabla */
-    -webkit-overflow-scrolling: touch;
 }
 
 .tabla-stock { 
     width: 100%; 
     border-collapse: collapse; 
     margin-top: 10px; 
-    min-width: 550px; 
 }
 
 .tabla-stock th, .tabla-stock td { 
@@ -309,7 +306,7 @@ header h1 {
     font-size: 15px; 
 }
 
-/* Modal de Cobro */
+/* Modal Cobro */
 .medios-pago { 
     display: grid; 
     grid-template-columns: 1fr 1fr 1fr; 
@@ -368,7 +365,7 @@ header h1 {
 }
 
 /* ===================================================
-   📱 ADAPTACIÓN PARA CELULARES (Max Width 768px)
+   📱 MAGIA RESPONSIVE PARA CELULARES (Max Width 768px)
    =================================================== */
 @media (max-width: 768px) {
     header {
@@ -389,5 +386,61 @@ header h1 {
 
     .grid-ventas { 
         grid-template-columns: 1fr; 
+    }
+
+    /* Transformación de Tabla de Stock a TARJETAS COMPACTAS */
+    .tabla-stock, .tabla-stock thead, .tabla-stock tbody, .tabla-stock th, .tabla-stock td, .tabla-stock tr { 
+        display: block; 
+    }
+
+    .tabla-stock thead tr { 
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+    }
+
+    .tabla-stock tr { 
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        padding: 12px;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .tabla-stock td { 
+        border: none;
+        border-bottom: 1px solid #f0f0f0; 
+        position: relative;
+        padding: 8px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 14px;
+    }
+
+    .tabla-stock td:last-child {
+        border-bottom: none;
+        margin-top: 8px;
+        justify-content: flex-end;
+    }
+
+    /* Etiquetas automáticas a la izquierda en móvil */
+    .tabla-stock td:nth-of-type(1):before { content: "Categoría:"; font-weight: bold; color: #666; }
+    .tabla-stock td:nth-of-type(2):before { content: "Barcode:"; font-weight: bold; color: #666; }
+    .tabla-stock td:nth-of-type(3):before { content: "Producto:"; font-weight: bold; color: #666; }
+    .tabla-stock td:nth-of-type(4):before { content: "Precio:"; font-weight: bold; color: #666; }
+    .tabla-stock td:nth-of-type(5):before { content: "Stock:"; font-weight: bold; color: #666; }
+
+    /* Ajuste del Panel de Aumento Masivo */
+    .panel-aumento-masivo {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+
+    .panel-aumento-masivo select, 
+    .panel-aumento-masivo input, 
+    .panel-aumento-masivo button {
+        width: 100% !important;
     }
 }
