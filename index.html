@@ -4,13 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kiosco - Panel de Ventas</title>
+    <!-- Librería oficial de Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
         body { background-color: #f4f6f9; color: #333; padding: 20px; }
         .container { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
         header { grid-column: span 2; background-color: #007bff; color: white; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
         .modulo-ventas, .modulo-carrito { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .buscador { width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+        .buscador { width: 100%; padding: 12px; margin-bottom: 20px; border: 2px solid #007bff; border-radius: 5px; font-size: 16px; outline: none; }
         .lista-productos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .producto-card { border: 1px solid #eee; padding: 15px; border-radius: 5px; text-align: center; cursor: pointer; transition: 0.2s; }
         .producto-card:hover { border-color: #007bff; background-color: #f0f7ff; }
@@ -30,25 +32,9 @@
 
     <!-- Módulo de Productos -->
     <main class="modulo-ventas">
-        <input type="text" class="buscador" placeholder="🔍 Buscar por nombre o código de barras...">
-        <div class="lista-productos">
-            <!-- Esto después se cargará automáticamente desde Supabase -->
-            <div class="producto-card">
-                <h3>Alfajor Jorgito</h3>
-                <p>$800</p>
-            </div>
-            <div class="producto-card">
-                <h3>Gaseosa 500ml</h3>
-                <p>$1500</p>
-            </div>
-            <div class="producto-card">
-                <h3>Chicles Beldent</h3>
-                <p>$500</p>
-            </div>
-            <div class="producto-card">
-                <h3>Papas Fritas</h3>
-                <p>$1200</p>
-            </div>
+        <input type="text" id="buscador" class="buscador" placeholder="🔍 Pistoleá el código de barras o buscá por nombre..." autofocus onkeypress="manejarEnter(event)" onkeyup="filtrarProductos()">
+        <div id="contenedor-productos" class="lista-productos">
+            <p>Cargando productos desde Supabase...</p>
         </div>
     </main>
 
@@ -56,21 +42,124 @@
     <aside class="modulo-carrito">
         <h2>Detalle de Venta</h2>
         <div id="carrito-items">
-            <div class="item-carrito">
-                <span>1x Alfajor Jorgito</span>
-                <strong>$800</strong>
-            </div>
-            <div class="item-carrito">
-                <span>1x Gaseosa 500ml</span>
-                <strong>$1500</strong>
-            </div>
+            <!-- Los productos seleccionados aparecerán acá -->
         </div>
         <div class="total-box">
-            Total: $2300
+            Total: $<span id="total-monto">0</span>
         </div>
-        <button class="btn-cobrar">💵 COBRAR (F10)</button>
+        <button class="btn-cobrar" onclick="cobrar()">💵 COBRAR</button>
     </aside>
 </div>
+
+<script>
+    // 1. Configuración de conexión con Supabase
+    const SUPABASE_URL = 'https://xsaqhiaiwgqfpghpxarl.supabase.co/rest/v1/';
+    const SUPABASE_KEY = 'sb_publishable_85wjOI6fSpOsaH_Bw8Jn7Q_vP_n2JKJ';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let productosGlobales = [];
+    let carrito = [];
+
+    // 2. Traer productos reales desde Supabase
+    async function cargarProductos() {
+        const { data, error } = await db.from('productos').select('*');
+
+        if (error) {
+            console.error('Error al cargar productos:', error);
+            document.getElementById('contenedor-productos').innerHTML = '<p>Error al conectar con la base de datos.</p>';
+            return;
+        }
+
+        productosGlobales = data;
+        renderizarProductos(productosGlobales);
+    }
+
+    // 3. Dibujar las tarjetas de productos
+    function renderizarProductos(lista) {
+        const contenedor = document.getElementById('contenedor-productos');
+        contenedor.innerHTML = '';
+
+        if (lista.length === 0) {
+            contenedor.innerHTML = '<p>No se encontraron productos.</p>';
+            return;
+        }
+
+        lista.forEach(prod => {
+            const card = document.createElement('div');
+            card.className = 'producto-card';
+            card.onclick = () => agregarAlCarrito(prod);
+            card.innerHTML = `
+                <h3>${prod.nombre}</h3>
+                <p>$${prod.precio}</p>
+                <small style="color: #666;">Stock: ${prod.stock} | Barcode: ${prod.codigo_barras || 'N/A'}</small>
+            `;
+            contenedor.appendChild(card);
+        });
+    }
+
+    // 4. Lógica para Lector de Código de Barras (al presionar ENTER)
+    function manejarEnter(e) {
+        if (e.key === 'Enter') {
+            const valorIngresado = document.getElementById('buscador').value.trim();
+            
+            // Buscamos si existe un producto con ese código de barras exacto
+            const productoEncontrado = productosGlobales.find(p => p.codigo_barras === valorIngresado);
+
+            if (productoEncontrado) {
+                agregarAlCarrito(productoEncontrado);
+                document.getElementById('buscador').value = ''; // Limpiamos para el próximo producto
+                renderizarProductos(productosGlobales);
+            }
+        }
+    }
+
+    // 5. Filtrar mientras escribe
+    function filtrarProductos() {
+        const texto = document.getElementById('buscador').value.toLowerCase().trim();
+        const filtrados = productosGlobales.filter(p => 
+            p.nombre.toLowerCase().includes(texto) || 
+            (p.codigo_barras && p.codigo_barras.includes(texto))
+        );
+        renderizarProductos(filtrados);
+    }
+
+    // 6. Lógica del carrito
+    function agregarAlCarrito(producto) {
+        carrito.push(producto);
+        actualizarCarritoUI();
+    }
+
+    function actualizarCarritoUI() {
+        const contenedorCarrito = document.getElementById('carrito-items');
+        contenedorCarrito.innerHTML = '';
+        let total = 0;
+
+        carrito.forEach(item => {
+            total += Number(item.precio);
+            const div = document.createElement('div');
+            div.className = 'item-carrito';
+            div.innerHTML = `<span>1x ${item.nombre}</span><strong>$${item.precio}</strong>`;
+            contenedorCarrito.appendChild(div);
+        });
+
+        document.getElementById('total-monto').innerText = total;
+    }
+
+    // 7. Simular cobro
+    function cobrar() {
+        if (carrito.length === 0) {
+            alert("El carrito está vacío.");
+            return;
+        }
+        alert("¡Venta realizada con éxito!");
+        carrito = [];
+        actualizarCarritoUI();
+        document.getElementById('buscador').focus();
+    }
+
+    // Ejecutar al cargar la página
+    cargarProductos();
+</script>
 
 </body>
 </html>
