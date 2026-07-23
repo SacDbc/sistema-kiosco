@@ -86,7 +86,7 @@
 
             <!-- Buscador Inteligente de Inventario -->
             <div style="margin-bottom: 15px;">
-                <input type="text" id="buscador-stock" oninput="filtrarTablaStock()" placeholder="🔍 Buscar en inventario por nombre, categoría o código de barras..." style="width:100%; padding:10px 14px; border:1px solid #007bff; border-radius:6px; font-size:14px; outline:none;">
+                <input type="text" id="buscador-stock" oninput="filtrarTablaStock()" onkeyup="filtrarTablaStock()" onchange="filtrarTablaStock()" placeholder="🔍 Buscar en inventario por nombre, categoría o código..." style="width:100%; padding:10px 14px; border:1px solid #007bff; border-radius:6px; font-size:14px; outline:none;">
             </div>
 
             <!-- Contenedor responsivo para móviles -->
