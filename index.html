@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KioscoEnLínea - Sistema de Gestión</title>
-    <!-- Hoja de Estilos propia desglosada -->
     <link rel="stylesheet" href="styles.css">
     <!-- Librería oficial de Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -56,21 +55,33 @@
         </div>
     </section>
 
-    <!-- SECCIÓN STOCK -->
+    <!-- SECCIÓN STOCK / INVENTARIO -->
     <section id="seccion-stock" class="seccion">
         <div class="modulo-stock">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <h2>Inventario de Productos</h2>
-                <button class="btn-crear" onclick="abrirModal()">➕ Nuevo Producto</button>
+                <button class="btn-crear" onclick="abrirModalCrear()">➕ Nuevo Producto</button>
+            </div>
+
+            <!-- Panel de Aumento Masivo por Porcentaje -->
+            <div style="background:#e7f1ff; border:1px solid #b6d4fe; padding:15px; border-radius:6px; margin-bottom:20px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <strong>📈 Aumento Masivo por Categoría:</strong>
+                <select id="aumento-categoria" style="padding:8px; border-radius:4px; border:1px solid #ccc;">
+                    <option value="">Todas las categorías</option>
+                </select>
+                <input type="number" id="aumento-porcentaje" placeholder="% Aumento (Ej: 15)" style="padding:8px; width:150px; border-radius:4px; border:1px solid #ccc;">
+                <button onclick="aplicarAumentoMasivo()" style="background:#17a2b8; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⚡ Aplicar Aumento</button>
             </div>
 
             <table class="tabla-stock">
                 <thead>
                     <tr>
-                        <th>Código Barcode</th>
+                        <th>Categoría</th>
+                        <th>Barcode</th>
                         <th>Producto</th>
                         <th>Precio</th>
-                        <th>Stock Actual</th>
+                        <th>Stock</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="tabla-body-stock"></tbody>
@@ -80,23 +91,25 @@
 
 </div>
 
-<!-- Modal Producto Nuevo -->
+<!-- Modal Crear / Editar Producto -->
 <div id="modal-producto" class="modal">
     <div class="modal-contenido">
-        <h2>Nuevo Producto</h2>
-        <input type="text" id="p-nombre" placeholder="Nombre (Ej: Coca 500ml)">
+        <h2 id="modal-titulo-prod">Nuevo Producto</h2>
+        <input type="hidden" id="p-id"> <!-- ID oculto para edición -->
+        <input type="text" id="p-nombre" placeholder="Nombre (Ej: Marlboro Red 20)">
+        <input type="text" id="p-categoria" placeholder="Categoría (Ej: Cigarrillos, Bebidas)">
         <input type="number" id="p-precio" placeholder="Precio ($)">
         <input type="number" id="p-stock" placeholder="Stock Inicial">
         <input type="text" id="p-codigo" placeholder="Código de Barras (Opcional)">
         
         <div class="modal-acciones">
-            <button class="btn-guardar" onclick="guardarNuevoProducto()">Guardar</button>
+            <button class="btn-guardar" onclick="guardarProducto()">Guardar</button>
             <button class="btn-cancelar" onclick="cerrarModal()">Cancelar</button>
         </div>
     </div>
 </div>
 
-<!-- Modal Cobro / Medios de Pago y Vuelto -->
+<!-- Modal Cobro -->
 <div id="modal-cobro" class="modal">
     <div class="modal-contenido">
         <h2>Cobrar Venta</h2>
@@ -133,7 +146,6 @@
     </div>
 </div>
 
-<!-- Lógica principal desglosada -->
 <script src="app.js"></script>
 
 </body>
