@@ -22,6 +22,7 @@
         .total-box { margin-top: 20px; font-size: 22px; font-weight: bold; text-align: right; color: #28a745; }
         .btn-cobrar { width: 100%; background-color: #28a745; color: white; border: none; padding: 15px; font-size: 18px; font-weight: bold; border-radius: 5px; margin-top: 15px; cursor: pointer; }
         .btn-cobrar:hover { background-color: #218838; }
+        .btn-cobrar:disabled { background-color: #ccc; cursor: not-allowed; }
 
         /* Ventana Modal para Alta de Productos */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
@@ -61,7 +62,7 @@
         <div class="total-box">
             Total: $<span id="total-monto">0</span>
         </div>
-        <button class="btn-cobrar" onclick="cobrar()">💵 COBRAR</button>
+        <button id="btn-cobrar" class="btn-cobrar" onclick="cobrar()">💵 COBRAR</button>
     </aside>
 </div>
 
@@ -82,7 +83,7 @@
 </div>
 
 <script>
-    // 1. Configuración de conexión con Supabase
+    // 1. Configuración de conexión con Supabase con tus credenciales estáticas
     const SUPABASE_URL = 'https://xsaqhiaiwgqfpghpxarl.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_85wjOI6fSpOsaH_Bw8Jn7Q_vP_n2JKJ';
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -92,7 +93,7 @@
 
     // 2. Traer productos desde Supabase
     async function cargarProductos() {
-        const { data, error } = await db.from('productos').select('*');
+        const { data, error } = await db.from('productos').select('*').order('id', { ascending: true });
 
         if (error) {
             console.error('Error al cargar productos:', error);
@@ -121,7 +122,9 @@
             card.innerHTML = `
                 <h3>${prod.nombre}</h3>
                 <p>$${prod.precio}</p>
-                <small style="color: #666;">Stock: ${prod.stock} | Barcode: ${prod.codigo_barras || 'N/A'}</small>
+                <small style="color: ${prod.stock > 0 ? '#666' : 'red'}; font-weight: ${prod.stock > 0 ? 'normal' : 'bold'};">
+                    ${prod.stock > 0 ? 'Stock: ' + prod.stock : 'SIN STOCK'} | Barcode: ${prod.codigo_barras || 'N/A'}
+                </small>
             `;
             contenedor.appendChild(card);
         });
@@ -166,7 +169,7 @@
         } else {
             alert("¡Producto guardado exitosamente!");
             cerrarModal();
-            cargarProductos(); // Recargamos la lista actualizada
+            cargarProductos();
         }
     }
 
@@ -196,6 +199,10 @@
 
     // 7. Lógica del carrito
     function agregarAlCarrito(producto) {
+        if (producto.stock <= 0) {
+            alert("⚠️ El producto no tiene stock disponible.");
+            return;
+        }
         carrito.push(producto);
         actualizarCarritoUI();
     }
@@ -216,16 +223,43 @@
         document.getElementById('total-monto').innerText = total;
     }
 
-    // 8. Simular cobro
-    function cobrar() {
+    // 8. COBRAR Y DESCONTAR STOCK REAL EN SUPABASE
+    async function cobrar() {
         if (carrito.length === 0) {
             alert("El carrito está vacío.");
             return;
         }
-        alert("¡Venta realizada con éxito!");
-        carrito = [];
-        actualizarCarritoUI();
-        document.getElementById('buscador').focus();
+
+        const btnCobrar = document.getElementById('btn-cobrar');
+        btnCobrar.disabled = true;
+        btnCobrar.innerText = "Procesando...";
+
+        try {
+            for (const prod of carrito) {
+                const nuevoStock = prod.stock - 1;
+
+                const { error } = await db
+                    .from('productos')
+                    .update({ stock: nuevoStock })
+                    .eq('id', prod.id);
+
+                if (error) {
+                    console.error(`Error actualizando stock de ${prod.nombre}:`, error);
+                }
+            }
+
+            alert("¡Venta realizada con éxito y stock actualizado!");
+            carrito = [];
+            actualizarCarritoUI();
+            await cargarProductos();
+        } catch (err) {
+            console.error('Error al procesar la venta:', err);
+            alert("Hubo un problema al procesar el cobro.");
+        } finally {
+            btnCobrar.disabled = false;
+            btnCobrar.innerText = "💵 COBRAR";
+            document.getElementById('buscador').focus();
+        }
     }
 
     // Cargar productos al iniciar
