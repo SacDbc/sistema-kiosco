@@ -3,6 +3,7 @@ const SUPABASE_KEY = 'sb_publishable_85wjOI6fSpOsaH_Bw8Jn7Q_vP_n2JKJ';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let productosGlobales = [];
+let categoriasGlobales = [];
 let carrito = [];
 let medioPagoSeleccionado = 'Efectivo';
 let totalVentaActual = 0;
@@ -22,6 +23,45 @@ function cambiarPestaña(tab) {
     }
 }
 
+// Cargar Inicial
+async function cargarTodo() {
+    await cargarCategorias();
+    await cargarProductos();
+}
+
+// Cargar Categorías desde Supabase
+async function cargarCategorias() {
+    const { data, error } = await db.from('categorias').select('*').order('nombre', { ascending: true });
+    if (error) return console.error(error);
+
+    categoriasGlobales = data;
+    poblarSelectoresCategorias(categoriasGlobales);
+}
+
+function poblarSelectoresCategorias(lista) {
+    // 1. Selector en formulario de producto
+    const selectProd = document.getElementById('p-categoria-select');
+    selectProd.innerHTML = '';
+    
+    lista.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat.nombre;
+        opt.innerText = cat.nombre;
+        selectProd.appendChild(opt);
+    });
+
+    // 2. Selector en filtro de aumento masivo
+    const selectAumento = document.getElementById('aumento-categoria');
+    selectAumento.innerHTML = '<option value="">Todas las categorías</option>';
+    
+    lista.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat.nombre;
+        opt.innerText = cat.nombre;
+        selectAumento.appendChild(opt);
+    });
+}
+
 // Cargar Productos
 async function cargarProductos() {
     const { data, error } = await db.from('productos').select('*').order('id', { ascending: true });
@@ -30,21 +70,6 @@ async function cargarProductos() {
     productosGlobales = data;
     renderizarFavoritos(productosGlobales);
     renderizarTablaStock(productosGlobales);
-    poblarDesplegableCategorias(productosGlobales);
-}
-
-// Poblar selector de categorías para aumento masivo
-function poblarDesplegableCategorias(lista) {
-    const select = document.getElementById('aumento-categoria');
-    select.innerHTML = '<option value="">Todas las categorías</option>';
-
-    const categoriasUnicas = [...new Set(lista.map(p => p.categoria || 'General'))];
-    categoriasUnicas.forEach(cat => {
-        const option = document.createElement('option');
-        option.value = cat;
-        option.innerText = cat;
-        select.appendChild(option);
-    });
 }
 
 function renderizarFavoritos(lista) {
@@ -307,19 +332,17 @@ function renderizarTablaStock(lista) {
     });
 }
 
-// Abrir Modal Modo CREAR
 function abrirModalCrear() {
     document.getElementById('modal-titulo-prod').innerText = 'Nuevo Producto';
     document.getElementById('p-id').value = '';
     document.getElementById('p-nombre').value = '';
-    document.getElementById('p-categoria').value = '';
+    document.getElementById('p-categoria-select').value = 'General';
     document.getElementById('p-precio').value = '';
     document.getElementById('p-stock').value = '';
     document.getElementById('p-codigo').value = '';
     document.getElementById('modal-producto').style.display = 'flex';
 }
 
-// Abrir Modal Modo EDITAR (Carga los datos existentes)
 function abrirModalEditar(id) {
     const prod = productosGlobales.find(p => p.id === id);
     if (!prod) return;
@@ -327,7 +350,7 @@ function abrirModalEditar(id) {
     document.getElementById('modal-titulo-prod').innerText = 'Editar Producto';
     document.getElementById('p-id').value = prod.id;
     document.getElementById('p-nombre').value = prod.nombre;
-    document.getElementById('p-categoria').value = prod.categoria || 'General';
+    document.getElementById('p-categoria-select').value = prod.categoria || 'General';
     document.getElementById('p-precio').value = prod.precio;
     document.getElementById('p-stock').value = prod.stock;
     document.getElementById('p-codigo').value = prod.codigo_barras || '';
@@ -338,11 +361,11 @@ function cerrarModal() {
     document.getElementById('modal-producto').style.display = 'none';
 }
 
-// Guardar (Detecta si es Alta o Edición)
 async function guardarProducto() {
     const id = document.getElementById('p-id').value;
     const nombre = document.getElementById('p-nombre').value.trim();
-    const categoria = document.getElementById('p-categoria').value.trim() || 'General';
+    // Si no selecciona categoría, cae por defecto en "General"
+    const categoria = document.getElementById('p-categoria-select').value || 'General';
     const precio = Number(document.getElementById('p-precio').value);
     const stock = Number(document.getElementById('p-stock').value);
     const codigo = document.getElementById('p-codigo').value.trim();
@@ -359,11 +382,9 @@ async function guardarProducto() {
 
     let error;
     if (id) {
-        // Modo Edición
         const res = await db.from('productos').update(datos).eq('id', id);
         error = res.error;
     } else {
-        // Modo Creación
         const res = await db.from('productos').insert([datos]);
         error = res.error;
     }
@@ -376,12 +397,11 @@ async function guardarProducto() {
     }
 }
 
-// Eliminar Producto
 async function eliminarProducto(id) {
     const prod = productosGlobales.find(p => p.id === id);
     if (!prod) return;
 
-    if (confirm(`¿Estás seguro de eliminar "${prod.nombre}"? esta acción no se puede deshacer.`)) {
+    if (confirm(`¿Estás seguro de eliminar "${prod.nombre}"?`)) {
         const { error } = await db.from('productos').delete().eq('id', id);
         if (error) alert("Error al eliminar.");
         else {
@@ -391,21 +411,66 @@ async function eliminarProducto(id) {
     }
 }
 
-/* LÓGICA DE AUMENTO MASIVO POR PORCENTAJE */
+/* GESTOR DE CATEGORÍAS */
+function abrirModalCategorias() {
+    renderizarListaCategoriasModal();
+    document.getElementById('modal-categorias').style.display = 'flex';
+}
+
+function cerrarModalCategorias() {
+    document.getElementById('modal-categorias').style.display = 'none';
+}
+
+function renderizarListaCategoriasModal() {
+    const listaUI = document.getElementById('lista-categorias-modal');
+    listaUI.innerHTML = '';
+
+    categoriasGlobales.forEach(cat => {
+        const li = document.createElement('li');
+        li.style.cssText = 'padding:8px 12px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;';
+        li.innerHTML = `
+            <strong>${cat.nombre}</strong>
+            ${cat.nombre !== 'General' ? `<button onclick="borrarCategoria(${cat.id}, '${cat.nombre}')" style="background:#dc3545; color:white; border:none; padding:3px 7px; border-radius:3px; cursor:pointer; font-size:12px;">✕</button>` : '<small style="color:#888;">(Por defecto)</small>'}
+        `;
+        listaUI.appendChild(li);
+    });
+}
+
+async function crearCategoria() {
+    const nombre = document.getElementById('nueva-cat-nombre').value.trim();
+    if (!nombre) return alert("Ingresá un nombre de categoría.");
+
+    const { error } = await db.from('categorias').insert([{ nombre }]);
+
+    if (error) {
+        alert("La categoría ya existe o surgió un error.");
+    } else {
+        document.getElementById('nueva-cat-nombre').value = '';
+        await cargarCategorias();
+        renderizarListaCategoriasModal();
+    }
+}
+
+async function borrarCategoria(id, nombre) {
+    if (confirm(`¿Eliminar la categoría "${nombre}"?`)) {
+        const { error } = await db.from('categorias').delete().eq('id', id);
+        if (error) alert("No se pudo eliminar.");
+        else {
+            await cargarCategorias();
+            renderizarListaCategoriasModal();
+        }
+    }
+}
+
+/* AUMENTO MASIVO */
 async function aplicarAumentoMasivo() {
     const categoriaSel = document.getElementById('aumento-categoria').value;
     const porcentaje = Number(document.getElementById('aumento-porcentaje').value);
 
-    if (!porcentaje || porcentaje <= 0) {
-        return alert("Ingresá un porcentaje de aumento válido (ej: 15).");
-    }
+    if (!porcentaje || porcentaje <= 0) return alert("Ingresá un porcentaje de aumento válido.");
 
-    // Filtramos qué productos se van a actualizar
     const aActualizar = productosGlobales.filter(p => !categoriaSel || (p.categoria || 'General') === categoriaSel);
-
-    if (aActualizar.length === 0) {
-        return alert("No hay productos en la categoría seleccionada.");
-    }
+    if (aActualizar.length === 0) return alert("No hay productos en la categoría seleccionada.");
 
     const mensaje = categoriaSel 
         ? `¿Confirmás aumentar un ${porcentaje}% a todos los productos de la categoría "${categoriaSel}"?`
@@ -414,7 +479,6 @@ async function aplicarAumentoMasivo() {
     if (!confirm(mensaje)) return;
 
     for (const prod of aActualizar) {
-        // Calculamos nuevo precio redondeado
         const nuevoPrecio = Math.round(prod.precio * (1 + (porcentaje / 100)));
         await db.from('productos').update({ precio: nuevoPrecio }).eq('id', prod.id);
     }
@@ -424,5 +488,5 @@ async function aplicarAumentoMasivo() {
     await cargarProductos();
 }
 
-// Iniciar app
-cargarProductos();
+// Iniciar
+cargarTodo();
