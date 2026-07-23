@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KioscoEnLínea - Sistema de Gestión</title>
-    <!-- Hoja de Estilos propia desglosada -->
     <link rel="stylesheet" href="styles.css">
-    <!-- Librería oficial de Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -16,12 +14,12 @@
     <nav class="nav-tabs">
         <button id="btn-tab-ventas" class="tab-btn activo" onclick="cambiarPestaña('ventas')">🛒 Punto de Venta</button>
         <button id="btn-tab-stock" class="tab-btn" onclick="cambiarPestaña('stock')">📦 Control de Stock</button>
+        <button id="btn-tab-historial" class="tab-btn" onclick="cambiarPestaña('historial')">📊 Historial / Caja</button>
     </nav>
 </header>
 
 <div class="container">
 
-    <!-- SECCIÓN VENTAS -->
     <section id="seccion-ventas" class="seccion activa">
         <div class="grid-ventas">
             <main class="modulo-ventas">
@@ -56,7 +54,6 @@
         </div>
     </section>
 
-    <!-- SECCIÓN STOCK / INVENTARIO -->
     <section id="seccion-stock" class="seccion">
         <div class="modulo-stock">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
@@ -69,7 +66,6 @@
                 </div>
             </div>
 
-            <!-- Panel de Aumento Masivo por Porcentaje -->
             <div class="panel-aumento-masivo" style="background:#e7f1ff; border:1px solid #b6d4fe; padding:15px; border-radius:6px; margin-bottom:15px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                 <strong>📈 Aumento Masivo:</strong>
                 <select id="aumento-categoria" style="padding:8px; border-radius:4px; border:1px solid #ccc;">
@@ -84,12 +80,10 @@
                 <button onclick="aplicarAumentoMasivo()" style="background:#007bff; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⚡ Aplicar Aumento</button>
             </div>
 
-            <!-- Buscador Inteligente de Inventario -->
             <div style="margin-bottom: 15px;">
-                <input type="text" id="buscador-stock" oninput="filtrarTablaStock()" onkeyup="filtrarTablaStock()" onchange="filtrarTablaStock()" placeholder="🔍 Buscar en inventario por nombre, categoría o código..." style="width:100%; padding:10px 14px; border:1px solid #007bff; border-radius:6px; font-size:14px; outline:none;">
+                <input type="text" id="buscador-stock" oninput="filtrarTablaStock()" placeholder="🔍 Buscar en inventario por nombre, categoría o código de barras..." style="width:100%; padding:10px 14px; border:1px solid #007bff; border-radius:6px; font-size:14px; outline:none;">
             </div>
 
-            <!-- Contenedor responsivo para móviles -->
             <div class="tabla-contenedor">
                 <table class="tabla-stock">
                     <thead>
@@ -108,9 +102,48 @@
         </div>
     </section>
 
+    <section id="seccion-historial" class="seccion">
+        <div class="modulo-stock">
+            <h2>📊 Cierre de Caja e Historial de Ventas</h2>
+            
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px; margin:20px 0;">
+                <div style="background:#28a745; color:white; padding:15px; border-radius:8px; text-align:center;">
+                    <small>TOTAL FACTURADO</small>
+                    <div style="font-size:26px; font-weight:bold;" id="caja-total">$0</div>
+                </div>
+                <div style="background:#e9ecef; border:1px solid #ccc; padding:15px; border-radius:8px; text-align:center;">
+                    <small>💵 EFECTIVO</small>
+                    <div style="font-size:22px; font-weight:bold; color:#28a745;" id="caja-efectivo">$0</div>
+                </div>
+                <div style="background:#e9ecef; border:1px solid #ccc; padding:15px; border-radius:8px; text-align:center;">
+                    <small>📲 MERCADO PAGO / QR</small>
+                    <div style="font-size:22px; font-weight:bold; color:#007bff;" id="caja-qr">$0</div>
+                </div>
+                <div style="background:#e9ecef; border:1px solid #ccc; padding:15px; border-radius:8px; text-align:center;">
+                    <small>🏦 TRANSFERENCIAS</small>
+                    <div style="font-size:22px; font-weight:bold; color:#17a2b8;" id="caja-transf">$0</div>
+                </div>
+            </div>
+
+            <h3>📜 Últimas Ventas Registradas</h3>
+            <div class="tabla-contenedor" style="margin-top:10px;">
+                <table class="tabla-stock">
+                    <thead>
+                        <tr>
+                            <th>Fecha/Hora</th>
+                            <th>Medio de Pago</th>
+                            <th>Detalle de Productos</th>
+                            <th>Total Venta</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-body-historial"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
 </div>
 
-<!-- Modal Crear / Editar Producto -->
 <div id="modal-producto" class="modal">
     <div class="modal-contenido">
         <h2 id="modal-titulo-prod">Nuevo Producto</h2>
@@ -131,7 +164,6 @@
     </div>
 </div>
 
-<!-- Modal Importar Excel / CSV -->
 <div id="modal-importar" class="modal">
     <div class="modal-contenido" style="max-width:500px;">
         <h2>📥 Importar Productos desde Excel</h2>
@@ -165,7 +197,6 @@
     </div>
 </div>
 
-<!-- Modal Editor de Categorías -->
 <div id="modal-categorias" class="modal">
     <div class="modal-contenido">
         <h2>Gestor de Categorías</h2>
@@ -183,7 +214,6 @@
     </div>
 </div>
 
-<!-- Modal Cobro -->
 <div id="modal-cobro" class="modal">
     <div class="modal-contenido">
         <h2>Cobrar Venta</h2>
