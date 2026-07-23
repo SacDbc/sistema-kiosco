@@ -4,6 +4,7 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let productosGlobales = [];
 let categoriasGlobales = [];
+let ventasGlobales = [];
 let carrito = [];
 let medioPagoSeleccionado = 'Efectivo';
 let totalVentaActual = 0;
@@ -17,9 +18,13 @@ function cambiarPestaña(tab) {
         document.getElementById('seccion-ventas').classList.add('activa');
         document.getElementById('btn-tab-ventas').classList.add('activo');
         document.getElementById('buscador').focus();
-    } else {
+    } else if (tab === 'stock') {
         document.getElementById('seccion-stock').classList.add('activa');
         document.getElementById('btn-tab-stock').classList.add('activo');
+    } else if (tab === 'historial') {
+        document.getElementById('seccion-historial').classList.add('activa');
+        document.getElementById('btn-tab-historial').classList.add('activo');
+        cargarHistorialVentas();
     }
 }
 
@@ -221,7 +226,7 @@ function actualizarCarritoUI() {
     document.getElementById('total-monto').innerText = totalVentaActual;
 }
 
-/* MEDIOS DE PAGO Y VUELTO */
+/* MEDIOS DE PAGO, VUELTO Y GUARDADO DE VENTA */
 function abrirModalCobro() {
     if (carrito.length === 0) return alert("El carrito está vacío.");
 
@@ -286,12 +291,26 @@ async function confirmarVentaFinal() {
     btn.innerText = "Guardando...";
 
     try {
+        // 1. Descontar Stock de los productos
         for (const item of carrito) {
             const nuevoStock = item.stock - item.cantidad;
             await db.from('productos').update({ stock: nuevoStock }).eq('id', item.id);
         }
 
-        alert(`¡Venta cobrada con éxito (${medioPagoSeleccionado})!`);
+        // 2. Registrar la venta en la tabla 'ventas'
+        const registroVenta = {
+            monto_total: totalVentaActual,
+            medio_pago: medioPagoSeleccionado,
+            items: carrito.map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio }))
+        };
+
+        const { error: errVenta } = await db.from('ventas').insert([registroVenta]);
+
+        if (errVenta) {
+            console.error('Error al guardar historial de venta:', errVenta);
+        }
+
+        alert(`¡Venta cobrada y registrada con éxito (${medioPagoSeleccionado})!`);
         carrito = [];
         actualizarCarritoUI();
         cerrarModalCobro();
@@ -303,6 +322,70 @@ async function confirmarVentaFinal() {
         btn.innerText = "✔ FINALIZAR VENTA";
         document.getElementById('buscador').focus();
     }
+}
+
+/* HISTORIAL DE VENTAS Y RECAUDACIÓN */
+async function cargarHistorialVentas() {
+    const tbody = document.getElementById('tabla-body-historial');
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Cargando historial...</td></tr>';
+
+    const { data, error } = await db.from('ventas').select('*').order('id', { ascending: false }).limit(50);
+
+    if (error) {
+        console.error('Error al cargar historial:', error);
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Error al cargar ventas.</td></tr>';
+        return;
+    }
+
+    ventasGlobales = data;
+    renderizarHistorial(ventasGlobales);
+}
+
+function renderizarHistorial(ventas) {
+    const tbody = document.getElementById('tabla-body-historial');
+    tbody.innerHTML = '';
+
+    if (ventas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#888;">No hay ventas registradas aún.</td></tr>';
+        actualizarTotalesCaja(0, 0, 0, 0);
+        return;
+    }
+
+    let total = 0, efectivo = 0, qr = 0, transf = 0;
+
+    ventas.forEach(v => {
+        const monto = Number(v.monto_total) || 0;
+        total += monto;
+
+        if (v.medio_pago === 'Efectivo') efectivo += monto;
+        else if (v.medio_pago === 'QR') qr += monto;
+        else if (v.medio_pago === 'Transferencia') transf += monto;
+
+        // Formatear Fecha
+        const fechaObj = new Date(v.created_at);
+        const fechaHora = fechaObj.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+        // Formatear Ítems
+        const detalleItems = (v.items || []).map(i => `${i.cantidad}x ${i.nombre}`).join(', ');
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><small style="color:#666;">${fechaHora}</small></td>
+            <td><strong>${v.medio_pago}</strong></td>
+            <td><span style="font-size:13px; color:#333;">${detalleItems}</span></td>
+            <td><strong style="color:#28a745;">$${monto}</strong></td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    actualizarTotalesCaja(total, efectivo, qr, transf);
+}
+
+function actualizarTotalesCaja(total, efectivo, qr, transf) {
+    document.getElementById('caja-total').innerText = `$${total}`;
+    document.getElementById('caja-efectivo').innerText = `$${efectivo}`;
+    document.getElementById('caja-qr').innerText = `$${qr}`;
+    document.getElementById('caja-transf').innerText = `$${transf}`;
 }
 
 /* TABLA DE STOCK, EDICIÓN, BUSCADOR INTELIGENTE Y EXPORTACIÓN */
@@ -332,15 +415,12 @@ function renderizarTablaStock(lista) {
     });
 }
 
-// Buscador Inteligente en vivo para la pestaña de Stock (Compatible con Celulares)
 function filtrarTablaStock() {
     const input = document.getElementById('buscador-stock');
     if (!input) return;
 
-    // Normalizamos el texto quitando espacios de más
     const texto = input.value.toLowerCase().trim();
-    
-    if (texto === '') {
+    if (!texto) {
         renderizarTablaStock(productosGlobales);
         return;
     }
@@ -356,7 +436,6 @@ function filtrarTablaStock() {
     renderizarTablaStock(filtrados);
 }
 
-// EXPORTAR PRODUCTOS A EXCEL / CSV
 function exportarProductosCSV() {
     if (productosGlobales.length === 0) return alert("No hay productos cargados para exportar.");
 
