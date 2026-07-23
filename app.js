@@ -84,7 +84,7 @@ function renderizarFavoritos(lista) {
         
         let colorStock = '#888';
         if (prod.stock <= 0) colorStock = 'red';
-        else if (prod.stock <= (prod.stock_minimo || 3)) colorStock = '#d97706'; // Naranja
+        else if (prod.stock <= (prod.stock_minimo || 3)) colorStock = '#d97706';
 
         btn.innerHTML = `
             ${prod.nombre}<br>
@@ -186,21 +186,13 @@ function solicitarCantidadYAgregar(producto) {
     }
 }
 
-// LÓGICA DE AGREGAR AL CARRITO (Acepta Venta con Stock Cero / Insuficiente)
 function agregarAlCarrito(producto, cantidad = 1) {
-    if (producto.stock <= 0) {
-        // Advertencia visual suave pero PERMITE vender
-        console.warn(`⚠️ Vendiendo producto sin stock registrado: ${producto.nombre}`);
-    }
-
     const existe = carrito.find(item => item.id === producto.id);
-
     if (existe) {
         existe.cantidad += cantidad;
     } else {
         carrito.push({ ...producto, cantidad: cantidad });
     }
-
     actualizarCarritoUI();
 }
 
@@ -231,12 +223,13 @@ function actualizarCarritoUI() {
     document.getElementById('total-monto').innerText = totalVentaActual;
 }
 
-/* MEDIOS DE PAGO Y COBRO */
+/* MEDIOS DE PAGO Y TICKET */
 function abrirModalCobro() {
     if (carrito.length === 0) return alert("El carrito está vacío.");
 
     document.getElementById('modal-total-pagar').innerText = totalVentaActual;
     document.getElementById('monto-recibido').value = '';
+    document.getElementById('tel-cliente').value = '';
     document.getElementById('monto-vuelto-text').innerText = '0';
     seleccionarMedioPago('Efectivo');
     document.getElementById('modal-cobro').style.display = 'flex';
@@ -282,6 +275,7 @@ function calcularVuelto() {
     }
 }
 
+// CONFIRMAR VENTA Y OFRECER IMPRESIÓN/WHATSAPP
 async function confirmarVentaFinal() {
     if (medioPagoSeleccionado === 'Efectivo') {
         const recibido = Number(document.getElementById('monto-recibido').value) || 0;
@@ -295,8 +289,12 @@ async function confirmarVentaFinal() {
     btn.disabled = true;
     btn.innerText = "Guardando...";
 
+    const clienteTel = document.getElementById('tel-cliente').value.trim();
+    const itemsCopia = [...carrito];
+    const totalCopia = totalVentaActual;
+    const medioCopia = medioPagoSeleccionado;
+
     try {
-        // Descuenta el stock permitiendo números negativos si no había suficiente
         for (const item of carrito) {
             const nuevoStock = item.stock - item.cantidad;
             await db.from('productos').update({ stock: nuevoStock }).eq('id', item.id);
@@ -310,7 +308,23 @@ async function confirmarVentaFinal() {
 
         await db.from('ventas').insert([registroVenta]);
 
-        alert(`¡Venta cobrada y registrada con éxito (${medioPagoSeleccionado})!`);
+        // Preguntar al cajero si quiere imprimir o mandar por WhatsApp
+        const opcion = confirm(`¡Venta cobrada con éxito!\n\n¿Deseás IMPRIMIR el ticket de compra?\n(Aceptá para Imprimir o Cancelá si solo querés continuar)`);
+
+        if (opcion) {
+            imprimirTicketHTML({
+                fecha: new Date().toLocaleString('es-AR'),
+                medio_pago: medioCopia,
+                items: itemsCopia,
+                total: totalCopia
+            });
+        }
+
+        // Si ingresó número de WhatsApp, abre el enlace
+        if (clienteTel) {
+            enviarTicketWhatsApp(clienteTel, itemsCopia, totalCopia);
+        }
+
         carrito = [];
         actualizarCarritoUI();
         cerrarModalCobro();
@@ -319,15 +333,60 @@ async function confirmarVentaFinal() {
         alert("Error al procesar el cobro.");
     } finally {
         btn.disabled = false;
-        btn.innerText = "✔ FINALIZAR VENTA";
+        btn.innerText = "✔ COBRAR VENTA";
         document.getElementById('buscador').focus();
     }
+}
+
+/* LÓGICA DE IMPRESIÓN DE TICKET */
+function imprimirTicketHTML(datosVenta) {
+    const divTicket = document.getElementById('ticket-impresion');
+    
+    let lineasItems = '';
+    datosVenta.items.forEach(item => {
+        lineasItems += `
+            <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+                <span>${item.cantidad}x ${item.nombre.substring(0,18)}</span>
+                <span>$${item.precio * item.cantidad}</span>
+            </div>
+        `;
+    });
+
+    divTicket.innerHTML = `
+        <div style="text-align:center; font-weight:bold; font-size:14px;">🏪 KIOSCO EN LÍNEA</div>
+        <div style="text-align:center; margin-bottom:8px;">Comprobante de Compra</div>
+        <div>--------------------------------</div>
+        <div>Fecha: ${datosVenta.fecha}</div>
+        <div>Pago: ${datosVenta.medio_pago}</div>
+        <div>--------------------------------</div>
+        ${lineasItems}
+        <div>--------------------------------</div>
+        <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:14px; margin-top:5px;">
+            <span>TOTAL:</span>
+            <span>$${datosVenta.total}</span>
+        </div>
+        <div style="text-align:center; margin-top:15px;">¡Gracias por su compra!</div>
+    `;
+
+    window.print();
+}
+
+/* ENVIAR TICKET POR WHATSAPP */
+function enviarTicketWhatsApp(telefono, items, total) {
+    let mensaje = `*🏪 KIOSCO EN LÍNEA - Ticket de Compra*\n\n`;
+    items.forEach(i => {
+        mensaje += `• ${i.cantidad}x ${i.nombre} - $${i.precio * i.cantidad}\n`;
+    });
+    mensaje += `\n*TOTAL PAGADO: $${total}*\n¡Gracias por tu compra!`;
+
+    const url = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`;
+    window.open(url, '_blank');
 }
 
 /* HISTORIAL Y CIERRE DE CAJA */
 async function cargarHistorialVentas() {
     const tbody = document.getElementById('tabla-body-historial');
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Cargando historial...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando historial...</td></tr>';
 
     const { data, error } = await db.from('ventas').select('*').order('id', { ascending: false }).limit(50);
     if (error) return;
@@ -341,7 +400,7 @@ function renderizarHistorial(ventas) {
     tbody.innerHTML = '';
 
     if (ventas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#888;">No hay ventas registradas aún.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#888;">No hay ventas registradas aún.</td></tr>';
         actualizarTotalesCaja(0, 0, 0, 0);
         return;
     }
@@ -366,11 +425,27 @@ function renderizarHistorial(ventas) {
             <td><strong>${v.medio_pago}</strong></td>
             <td><span style="font-size:13px; color:#333;">${detalleItems}</span></td>
             <td><strong style="color:#28a745;">$${monto}</strong></td>
+            <td>
+                <button onclick="reimprimirTicketHistorial(${v.id})" style="background:#17a2b8; color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-size:12px; font-weight:bold;">🧾 Ticket</button>
+            </td>
         `;
         tbody.appendChild(tr);
     });
 
     actualizarTotalesCaja(total, efectivo, qr, transf);
+}
+
+function reimprimirTicketHistorial(idVenta) {
+    const venta = ventasGlobales.find(v => v.id === idVenta);
+    if (!venta) return;
+
+    const fechaObj = new Date(venta.created_at);
+    imprimirTicketHTML({
+        fecha: fechaObj.toLocaleString('es-AR'),
+        medio_pago: venta.medio_pago,
+        items: venta.items || [],
+        total: venta.monto_total
+    });
 }
 
 function actualizarTotalesCaja(total, efectivo, qr, transf) {
@@ -380,7 +455,7 @@ function actualizarTotalesCaja(total, efectivo, qr, transf) {
     document.getElementById('caja-transf').innerText = `$${transf}`;
 }
 
-/* TABLA DE STOCK, ALERTAS Y BUSCADOR */
+/* TABLA DE STOCK Y ALERTAS */
 function renderizarTablaStock(lista) {
     const tbody = document.getElementById('tabla-body-stock');
     tbody.innerHTML = '';
@@ -418,7 +493,6 @@ function renderizarTablaStock(lista) {
     });
 }
 
-// Filtro rápido de Alertas de Reposición
 function filtrarStockBajo() {
     mostrandoSoloBajoStock = !mostrandoSoloBajoStock;
     const btn = event.target;
