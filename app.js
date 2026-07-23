@@ -7,7 +7,7 @@ let carrito = [];
 let medioPagoSeleccionado = 'Efectivo';
 let totalVentaActual = 0;
 
-// Navegación entre Pestañas
+// Navegación Pestañas
 function cambiarPestaña(tab) {
     document.querySelectorAll('.seccion').forEach(s => s.classList.remove('activa'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('activo'));
@@ -22,7 +22,7 @@ function cambiarPestaña(tab) {
     }
 }
 
-// Carga de productos desde Supabase
+// Cargar Productos
 async function cargarProductos() {
     const { data, error } = await db.from('productos').select('*').order('id', { ascending: true });
     if (error) return console.error(error);
@@ -30,9 +30,23 @@ async function cargarProductos() {
     productosGlobales = data;
     renderizarFavoritos(productosGlobales);
     renderizarTablaStock(productosGlobales);
+    poblarDesplegableCategorias(productosGlobales);
 }
 
-// Renderizado de Accesos Rápidos (Favoritos)
+// Poblar selector de categorías para aumento masivo
+function poblarDesplegableCategorias(lista) {
+    const select = document.getElementById('aumento-categoria');
+    select.innerHTML = '<option value="">Todas las categorías</option>';
+
+    const categoriasUnicas = [...new Set(lista.map(p => p.categoria || 'General'))];
+    categoriasUnicas.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.innerText = cat;
+        select.appendChild(option);
+    });
+}
+
 function renderizarFavoritos(lista) {
     const contenedor = document.getElementById('contenedor-favoritos');
     contenedor.innerHTML = '';
@@ -50,7 +64,6 @@ function renderizarFavoritos(lista) {
     });
 }
 
-// Búsqueda en vivo de productos
 function buscarProductosLive() {
     let texto = document.getElementById('buscador').value.toLowerCase().trim();
     const desplegable = document.getElementById('desplegable-resultados');
@@ -65,7 +78,8 @@ function buscarProductosLive() {
 
     const coicidencias = productosGlobales.filter(p => 
         p.nombre.toLowerCase().includes(texto) || 
-        (p.codigo_barras && p.codigo_barras.includes(texto))
+        (p.codigo_barras && p.codigo_barras.includes(texto)) ||
+        (p.categoria && p.categoria.toLowerCase().includes(texto))
     );
 
     if (coicidencias.length === 0) {
@@ -85,7 +99,7 @@ function buscarProductosLive() {
         };
         item.innerHTML = `
             <div>
-                <strong>${prod.nombre}</strong><br>
+                <strong>${prod.nombre}</strong> <small style="color:#888;">[${prod.categoria || 'General'}]</small><br>
                 <small style="color:${prod.stock > 0 ? '#666' : 'red'}; font-weight:bold;">Stock disponible: ${prod.stock} u.</small>
             </div>
             <strong style="color:#28a745; font-size:16px;">$${prod.precio}</strong>
@@ -96,7 +110,6 @@ function buscarProductosLive() {
     desplegable.style.display = 'block';
 }
 
-// Lector de Barras o Teclado Multiplicador (Ej: 5*codigo)
 function manejarEnter(e) {
     if (e.key === 'Enter') {
         const valorIngresado = document.getElementById('buscador').value.trim();
@@ -128,7 +141,6 @@ function manejarEnter(e) {
     }
 }
 
-// Solicitud manual de cantidad por clic
 function solicitarCantidadYAgregar(producto) {
     let cant = prompt(`¿Cuántas unidades de "${producto.nombre}" deseas agregar?`, "1");
     if (cant !== null) {
@@ -139,7 +151,6 @@ function solicitarCantidadYAgregar(producto) {
     }
 }
 
-// Carrito de compras
 function agregarAlCarrito(producto, cantidad = 1) {
     if (producto.stock <= 0) {
         alert("⚠️ El producto no tiene stock disponible.");
@@ -274,7 +285,7 @@ async function confirmarVentaFinal() {
     }
 }
 
-// Tabla de Stock
+/* TABLA DE STOCK, EDICIÓN Y ELIMINACIÓN */
 function renderizarTablaStock(lista) {
     const tbody = document.getElementById('tabla-body-stock');
     tbody.innerHTML = '';
@@ -282,42 +293,136 @@ function renderizarTablaStock(lista) {
     lista.forEach(prod => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
+            <td><span style="background:#e9ecef; padding:3px 7px; border-radius:4px; font-size:12px;">${prod.categoria || 'General'}</span></td>
             <td><code>${prod.codigo_barras || 'N/A'}</code></td>
             <td><strong>${prod.nombre}</strong></td>
             <td>$${prod.precio}</td>
             <td><span style="color: ${prod.stock > 0 ? 'green' : 'red'}; font-weight: bold;">${prod.stock}</span> u.</td>
+            <td>
+                <button onclick="abrirModalEditar(${prod.id})" style="background:#ffc107; color:#333; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; font-weight:bold; margin-right:5px;">✏️ Editar</button>
+                <button onclick="eliminarProducto(${prod.id})" style="background:#dc3545; color:white; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; font-weight:bold;">🗑️ Borrar</button>
+            </td>
         `;
         tbody.appendChild(tr);
     });
 }
 
-// Modal Producto Nuevo
-function abrirModal() { document.getElementById('modal-producto').style.display = 'flex'; }
-function cerrarModal() {
-    document.getElementById('modal-producto').style.display = 'none';
+// Abrir Modal Modo CREAR
+function abrirModalCrear() {
+    document.getElementById('modal-titulo-prod').innerText = 'Nuevo Producto';
+    document.getElementById('p-id').value = '';
     document.getElementById('p-nombre').value = '';
+    document.getElementById('p-categoria').value = '';
     document.getElementById('p-precio').value = '';
     document.getElementById('p-stock').value = '';
     document.getElementById('p-codigo').value = '';
+    document.getElementById('modal-producto').style.display = 'flex';
 }
 
-async function guardarNuevoProducto() {
+// Abrir Modal Modo EDITAR (Carga los datos existentes)
+function abrirModalEditar(id) {
+    const prod = productosGlobales.find(p => p.id === id);
+    if (!prod) return;
+
+    document.getElementById('modal-titulo-prod').innerText = 'Editar Producto';
+    document.getElementById('p-id').value = prod.id;
+    document.getElementById('p-nombre').value = prod.nombre;
+    document.getElementById('p-categoria').value = prod.categoria || 'General';
+    document.getElementById('p-precio').value = prod.precio;
+    document.getElementById('p-stock').value = prod.stock;
+    document.getElementById('p-codigo').value = prod.codigo_barras || '';
+    document.getElementById('modal-producto').style.display = 'flex';
+}
+
+function cerrarModal() {
+    document.getElementById('modal-producto').style.display = 'none';
+}
+
+// Guardar (Detecta si es Alta o Edición)
+async function guardarProducto() {
+    const id = document.getElementById('p-id').value;
     const nombre = document.getElementById('p-nombre').value.trim();
+    const categoria = document.getElementById('p-categoria').value.trim() || 'General';
     const precio = Number(document.getElementById('p-precio').value);
     const stock = Number(document.getElementById('p-stock').value);
     const codigo = document.getElementById('p-codigo').value.trim();
 
     if (!nombre || !precio) return alert("Completá nombre y precio.");
 
-    const { error } = await db.from('productos').insert([{ nombre, precio, stock: stock || 0, codigo_barras: codigo || null }]);
+    const datos = {
+        nombre,
+        categoria,
+        precio,
+        stock: stock || 0,
+        codigo_barras: codigo || null
+    };
 
-    if (error) alert("Error al guardar.");
+    let error;
+    if (id) {
+        // Modo Edición
+        const res = await db.from('productos').update(datos).eq('id', id);
+        error = res.error;
+    } else {
+        // Modo Creación
+        const res = await db.from('productos').insert([datos]);
+        error = res.error;
+    }
+
+    if (error) alert("Error al guardar en la base de datos.");
     else {
-        alert("¡Producto guardado!");
+        alert("¡Producto guardado exitosamente!");
         cerrarModal();
         cargarProductos();
     }
 }
 
-// Iniciar aplicación
+// Eliminar Producto
+async function eliminarProducto(id) {
+    const prod = productosGlobales.find(p => p.id === id);
+    if (!prod) return;
+
+    if (confirm(`¿Estás seguro de eliminar "${prod.nombre}"? esta acción no se puede deshacer.`)) {
+        const { error } = await db.from('productos').delete().eq('id', id);
+        if (error) alert("Error al eliminar.");
+        else {
+            alert("Producto eliminado.");
+            cargarProductos();
+        }
+    }
+}
+
+/* LÓGICA DE AUMENTO MASIVO POR PORCENTAJE */
+async function aplicarAumentoMasivo() {
+    const categoriaSel = document.getElementById('aumento-categoria').value;
+    const porcentaje = Number(document.getElementById('aumento-porcentaje').value);
+
+    if (!porcentaje || porcentaje <= 0) {
+        return alert("Ingresá un porcentaje de aumento válido (ej: 15).");
+    }
+
+    // Filtramos qué productos se van a actualizar
+    const aActualizar = productosGlobales.filter(p => !categoriaSel || (p.categoria || 'General') === categoriaSel);
+
+    if (aActualizar.length === 0) {
+        return alert("No hay productos en la categoría seleccionada.");
+    }
+
+    const mensaje = categoriaSel 
+        ? `¿Confirmás aumentar un ${porcentaje}% a todos los productos de la categoría "${categoriaSel}"?`
+        : `¿Confirmás aumentar un ${porcentaje}% a TODOS los productos del kiosco?`;
+
+    if (!confirm(mensaje)) return;
+
+    for (const prod of aActualizar) {
+        // Calculamos nuevo precio redondeado
+        const nuevoPrecio = Math.round(prod.precio * (1 + (porcentaje / 100)));
+        await db.from('productos').update({ precio: nuevoPrecio }).eq('id', prod.id);
+    }
+
+    alert("¡Aumento masivo aplicado con éxito!");
+    document.getElementById('aumento-porcentaje').value = '';
+    await cargarProductos();
+}
+
+// Iniciar app
 cargarProductos();
