@@ -10,7 +10,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
         body { background-color: #f4f6f9; color: #333; }
 
-        /* Barra de Navegación Principal */
+        /* Encabezado */
         header { background-color: #007bff; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .nav-tabs { display: flex; gap: 10px; }
         .tab-btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 18px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
@@ -18,26 +18,37 @@
 
         .container { max-width: 1100px; margin: 20px auto; padding: 0 15px; }
 
-        /* Estilos Módulo de Ventas */
-        .grid-ventas { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        /* Módulo de Ventas */
+        .grid-ventas { display: grid; grid-template-columns: 1.8fr 1.2fr; gap: 20px; }
         .modulo-ventas, .modulo-carrito, .modulo-stock { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .buscador { width: 100%; padding: 12px; margin-bottom: 20px; border: 2px solid #007bff; border-radius: 5px; font-size: 16px; outline: none; }
-        .lista-productos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .producto-card { border: 1px solid #eee; padding: 15px; border-radius: 5px; text-align: center; cursor: pointer; transition: 0.2s; }
-        .producto-card:hover { border-color: #007bff; background-color: #f0f7ff; }
-        .item-carrito { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
-        .total-box { margin-top: 20px; font-size: 22px; font-weight: bold; text-align: right; color: #28a745; }
-        .btn-cobrar { width: 100%; background-color: #28a745; color: white; border: none; padding: 15px; font-size: 18px; font-weight: bold; border-radius: 5px; margin-top: 15px; cursor: pointer; }
+        
+        /* Buscador Desplegable estilo POS */
+        .contenedor-buscador { position: relative; margin-bottom: 25px; }
+        .buscador { width: 100%; padding: 14px; border: 2px solid #007bff; border-radius: 6px; font-size: 18px; outline: none; }
+        .desplegable-resultados { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-top: none; border-radius: 0 0 6px 6px; max-height: 250px; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 50; display: none; }
+        .item-resultado { padding: 12px 15px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .item-resultado:hover { background-color: #f0f7ff; }
+
+        /* Accesos Rápido / Favoritos */
+        .titulo-favoritos { font-size: 14px; font-weight: bold; color: #666; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .grid-favoritos { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+        .btn-favorito { background: #e9ecef; border: 1px solid #ced4da; padding: 12px 8px; border-radius: 6px; text-align: center; cursor: pointer; font-size: 13px; font-weight: bold; transition: 0.2s; }
+        .btn-favorito:hover { background: #007bff; color: white; border-color: #007bff; }
+
+        /* Carrito / Ticket de Venta */
+        .tabla-carrito { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .tabla-carrito th, .tabla-carrito td { padding: 10px 5px; border-bottom: 1px solid #eee; text-align: left; font-size: 14px; }
+        .btn-eliminar { background: #dc3545; color: white; border: none; padding: 3px 7px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+        .total-box { margin-top: 20px; font-size: 24px; font-weight: bold; text-align: right; color: #28a745; }
+        .btn-cobrar { width: 100%; background-color: #28a745; color: white; border: none; padding: 15px; font-size: 18px; font-weight: bold; border-radius: 6px; margin-top: 15px; cursor: pointer; }
         .btn-cobrar:hover { background-color: #218838; }
 
-        /* Estilos Módulo de Stock (Tabla) */
-        .header-stock { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        /* Tablas e Interfaz General */
         .tabla-stock { width: 100%; border-collapse: collapse; margin-top: 10px; }
         .tabla-stock th, .tabla-stock td { border: 1px solid #eee; padding: 12px; text-align: left; }
         .tabla-stock th { background-color: #f8f9fa; }
         .btn-crear { background: #28a745; color: white; border: none; padding: 10px 15px; font-weight: bold; border-radius: 5px; cursor: pointer; }
 
-        /* Ocultar secciones inactivas */
         .seccion { display: none; }
         .seccion.activa { display: block; }
 
@@ -62,19 +73,38 @@
 
 <div class="container">
 
-    <!-- ================= SECCIÓN 1: VENTAS ================= -->
+    <!-- SECCIÓN VENTAS -->
     <section id="seccion-ventas" class="seccion activa">
         <div class="grid-ventas">
             <main class="modulo-ventas">
-                <input type="text" id="buscador" class="buscador" placeholder="🔍 Pistoleá el código de barras o buscá por nombre..." autofocus onkeypress="manejarEnter(event)" onkeyup="filtrarProductos()">
-                <div id="contenedor-productos" class="lista-productos">
-                    <p>Cargando productos...</p>
+                <!-- Buscador Principal -->
+                <div class="contenedor-buscador">
+                    <input type="text" id="buscador" class="buscador" placeholder="⚡ Pistoleá código de barras o escribí para buscar..." autofocus onkeypress="manejarEnter(event)" oninput="buscarProductosLive()">
+                    <div id="desplegable-resultados" class="desplegable-resultados"></div>
+                </div>
+
+                <!-- Botones de Acceso Rápido / Favoritos -->
+                <div class="titulo-favoritos">⭐ Productos Rápidos</div>
+                <div id="contenedor-favoritos" class="grid-favoritos">
+                    <!-- Se arman automáticamente con los primeros productos -->
                 </div>
             </main>
 
+            <!-- Detalle de Venta -->
             <aside class="modulo-carrito">
                 <h2>Detalle de Venta</h2>
-                <div id="carrito-items"></div>
+                <table class="tabla-carrito">
+                    <thead>
+                        <tr>
+                            <th>Cant</th>
+                            <th>Prod</th>
+                            <th>Subtotal</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="carrito-items-body"></tbody>
+                </table>
+
                 <div class="total-box">
                     Total: $<span id="total-monto">0</span>
                 </div>
@@ -83,10 +113,10 @@
         </div>
     </section>
 
-    <!-- ================= SECCIÓN 2: CONTROL DE STOCK ================= -->
+    <!-- SECCIÓN STOCK -->
     <section id="seccion-stock" class="seccion">
         <div class="modulo-stock">
-            <div class="header-stock">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <h2>Inventario de Productos</h2>
                 <button class="btn-crear" onclick="abrirModal()">➕ Nuevo Producto</button>
             </div>
@@ -100,16 +130,14 @@
                         <th>Stock Actual</th>
                     </tr>
                 </thead>
-                <tbody id="tabla-body-stock">
-                    <!-- Se cargará dinámicamente -->
-                </tbody>
+                <tbody id="tabla-body-stock"></tbody>
             </table>
         </div>
     </section>
 
 </div>
 
-<!-- Modal / Ventana Emergente para Nuevo Producto -->
+<!-- Modal -->
 <div id="modal-producto" class="modal">
     <div class="modal-contenido">
         <h2>Nuevo Producto</h2>
@@ -126,15 +154,13 @@
 </div>
 
 <script>
-    // Configuración de Supabase
     const SUPABASE_URL = 'https://xsaqhiaiwgqfpghpxarl.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_85wjOI6fSpOsaH_Bw8Jn7Q_vP_n2JKJ';
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let productosGlobales = [];
-    let carrito = [];
+    let carrito = []; // Formato: [{ id, nombre, precio, stock, cantidad }]
 
-    // Cambiar entre pestañas (Ventas / Stock)
     function cambiarPestaña(tab) {
         document.querySelectorAll('.seccion').forEach(s => s.classList.remove('activa'));
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('activo'));
@@ -149,46 +175,160 @@
         }
     }
 
-    // Traer productos desde Supabase
     async function cargarProductos() {
         const { data, error } = await db.from('productos').select('*').order('id', { ascending: true });
-
-        if (error) {
-            console.error('Error al cargar productos:', error);
-            return;
-        }
+        if (error) return console.error(error);
 
         productosGlobales = data;
-        renderizarVistaVentas(productosGlobales);
+        renderizarFavoritos(productosGlobales);
         renderizarTablaStock(productosGlobales);
     }
 
-    // Vista de Caja
-    function renderizarVistaVentas(lista) {
-        const contenedor = document.getElementById('contenedor-productos');
+    // Dibujar Accesos Rápidos
+    function renderizarFavoritos(lista) {
+        const contenedor = document.getElementById('contenedor-favoritos');
         contenedor.innerHTML = '';
 
-        if (lista.length === 0) {
-            contenedor.innerHTML = '<p>No se encontraron productos.</p>';
-            return;
-        }
-
-        lista.forEach(prod => {
-            const card = document.createElement('div');
-            card.className = 'producto-card';
-            card.onclick = () => agregarAlCarrito(prod);
-            card.innerHTML = `
-                <h3>${prod.nombre}</h3>
-                <p>$${prod.precio}</p>
-                <small style="color: ${prod.stock > 0 ? '#666' : 'red'}; font-weight: ${prod.stock > 0 ? 'normal' : 'bold'};">
-                    ${prod.stock > 0 ? 'Stock: ' + prod.stock : 'SIN STOCK'}
-                </small>
-            `;
-            contenedor.appendChild(card);
+        lista.slice(0, 8).forEach(prod => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-favorito';
+            btn.onclick = () => agregarAlCarrito(prod);
+            btn.innerHTML = `${prod.nombre}<br><span style="color:#28a745;">$${prod.precio}</span>`;
+            contenedor.appendChild(btn);
         });
     }
 
-    // Vista de Tabla de Stock
+    // Búsqueda Inteligente (Live Autocomplete)
+    function buscarProductosLive() {
+        const texto = document.getElementById('buscador').value.toLowerCase().trim();
+        const desplegable = document.getElementById('desplegable-resultados');
+
+        if (texto.length === 0) {
+            desplegable.style.display = 'none';
+            return;
+        }
+
+        const coicidencias = productosGlobales.filter(p => 
+            p.nombre.toLowerCase().includes(texto) || 
+            (p.codigo_barras && p.codigo_barras.includes(texto))
+        );
+
+        if (coicidencias.length === 0) {
+            desplegable.style.display = 'none';
+            return;
+        }
+
+        desplegable.innerHTML = '';
+        coicidencias.forEach(prod => {
+            const item = document.createElement('div');
+            item.className = 'item-resultado';
+            item.onclick = () => {
+                agregarAlCarrito(prod);
+                document.getElementById('buscador').value = '';
+                desplegable.style.display = 'none';
+                document.getElementById('buscador').focus();
+            };
+            item.innerHTML = `
+                <div><strong>${prod.nombre}</strong> <small style="color:#666;">(Stock: ${prod.stock})</small></div>
+                <strong style="color:#28a745;">$${prod.precio}</strong>
+            `;
+            desplegable.appendChild(item);
+        });
+
+        desplegable.style.display = 'block';
+    }
+
+    // Lector de Barras (al presionar ENTER)
+    function manejarEnter(e) {
+        if (e.key === 'Enter') {
+            const valor = document.getElementById('buscador').value.trim();
+            const prod = productosGlobales.find(p => p.codigo_barras === valor || p.nombre.toLowerCase() === valor.toLowerCase());
+
+            if (prod) {
+                agregarAlCarrito(prod);
+                document.getElementById('buscador').value = '';
+                document.getElementById('desplegable-resultados').style.display = 'none';
+            }
+        }
+    }
+
+    // Lógica del Carrito Mejorada (Agrupa Ítems repetidos)
+    function agregarAlCarrito(producto) {
+        if (producto.stock <= 0) {
+            alert("⚠️ Producto sin stock.");
+            return;
+        }
+
+        const existe = carrito.find(item => item.id === producto.id);
+
+        if (existe) {
+            if (existe.cantidad >= producto.stock) {
+                alert("⚠️ No podés agregar más unidades de las disponibles en stock.");
+                return;
+            }
+            existe.cantidad++;
+        } else {
+            carrito.push({ ...producto, cantidad: 1 });
+        }
+
+        actualizarCarritoUI();
+    }
+
+    function eliminarDelCarrito(index) {
+        carrito.splice(index, 1);
+        actualizarCarritoUI();
+    }
+
+    function actualizarCarritoUI() {
+        const tbody = document.getElementById('carrito-items-body');
+        tbody.innerHTML = '';
+        let total = 0;
+
+        carrito.forEach((item, index) => {
+            const subtotal = item.precio * item.cantidad;
+            total += subtotal;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${item.cantidad}x</strong></td>
+                <td>${item.nombre}</td>
+                <td>$${subtotal}</td>
+                <td><button class="btn-eliminar" onclick="eliminarDelCarrito(${index})">✕</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('total-monto').innerText = total;
+    }
+
+    // Cobrar
+    async function cobrar() {
+        if (carrito.length === 0) return alert("El carrito está vacío.");
+
+        const btn = document.getElementById('btn-cobrar');
+        btn.disabled = true;
+        btn.innerText = "Procesando...";
+
+        try {
+            for (const item of carrito) {
+                const nuevoStock = item.stock - item.cantidad;
+                await db.from('productos').update({ stock: nuevoStock }).eq('id', item.id);
+            }
+
+            alert("¡Venta realizada exitosamente!");
+            carrito = [];
+            actualizarCarritoUI();
+            await cargarProductos();
+        } catch (e) {
+            alert("Error al procesar el cobro.");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "💵 COBRAR";
+            document.getElementById('buscador').focus();
+        }
+    }
+
+    // Tabla de Stock e Inventario
     function renderizarTablaStock(lista) {
         const tbody = document.getElementById('tabla-body-stock');
         tbody.innerHTML = '';
@@ -205,7 +345,7 @@
         });
     }
 
-    // Modal Producto
+    // Modal
     function abrirModal() { document.getElementById('modal-producto').style.display = 'flex'; }
     function cerrarModal() {
         document.getElementById('modal-producto').style.display = 'none';
@@ -221,93 +361,16 @@
         const stock = Number(document.getElementById('p-stock').value);
         const codigo = document.getElementById('p-codigo').value.trim();
 
-        if (!nombre || !precio) {
-            alert("Completa al menos el nombre y el precio.");
-            return;
-        }
+        if (!nombre || !precio) return alert("Completá nombre y precio.");
 
-        const { error } = await db.from('productos').insert([{
-            nombre, precio, stock: stock || 0, codigo_barras: codigo || null
-        }]);
+        const { error } = await db.from('productos').insert([{ nombre, precio, stock: stock || 0, codigo_barras: codigo || null }]);
 
-        if (error) {
-            alert("Error al guardar.");
-        } else {
+        if (error) alert("Error al guardar.");
+        else {
             alert("¡Producto guardado!");
             cerrarModal();
             cargarProductos();
         }
-    }
-
-    // Búsqueda y Lector de Barras
-    function manejarEnter(e) {
-        if (e.key === 'Enter') {
-            const valorIngresado = document.getElementById('buscador').value.trim();
-            const encontrado = productosGlobales.find(p => p.codigo_barras === valorIngresado);
-
-            if (encontrado) {
-                agregarAlCarrito(encontrado);
-                document.getElementById('buscador').value = '';
-                renderizarVistaVentas(productosGlobales);
-            }
-        }
-    }
-
-    function filtrarProductos() {
-        const texto = document.getElementById('buscador').value.toLowerCase().trim();
-        const filtrados = productosGlobales.filter(p => 
-            p.nombre.toLowerCase().includes(texto) || 
-            (p.codigo_barras && p.codigo_barras.includes(texto))
-        );
-        renderizarVistaVentas(filtrados);
-    }
-
-    // Carrito
-    function agregarAlCarrito(producto) {
-        if (producto.stock <= 0) {
-            alert("⚠️ Producto sin stock.");
-            return;
-        }
-        carrito.push(producto);
-        actualizarCarritoUI();
-    }
-
-    function actualizarCarritoUI() {
-        const contenedorCarrito = document.getElementById('carrito-items');
-        contenedorCarrito.innerHTML = '';
-        let total = 0;
-
-        carrito.forEach(item => {
-            total += Number(item.precio);
-            const div = document.createElement('div');
-            div.className = 'item-carrito';
-            div.innerHTML = `<span>1x ${item.nombre}</span><strong>$${item.precio}</strong>`;
-            contenedorCarrito.appendChild(div);
-        });
-
-        document.getElementById('total-monto').innerText = total;
-    }
-
-    // Cobrar
-    async function cobrar() {
-        if (carrito.length === 0) return alert("Carrito vacío.");
-
-        const btnCobrar = document.getElementById('btn-cobrar');
-        btnCobrar.disabled = true;
-        btnCobrar.innerText = "Procesando...";
-
-        for (const prod of carrito) {
-            await db.from('productos').update({ stock: prod.stock - 1 }).eq('id', prod.id);
-        }
-
-        alert("¡Venta realizada!");
-        carrito = [];
-        actualizarCarritoUI();
-        await cargarProductos();
-
-        btnCobrar.disabled = false;
-        btnCobrar.innerText = "💵 COBRAR";
-        document.getElementById('buscador').focus();
     }
 
     cargarProductos();
