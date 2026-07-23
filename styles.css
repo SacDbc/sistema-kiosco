@@ -1,0 +1,342 @@
+* { 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+    font-family: Arial, sans-serif; 
+}
+
+body { 
+    background-color: #f4f6f9; 
+    color: #333; 
+}
+
+/* Encabezado */
+header { 
+    background-color: #007bff; 
+    color: white; 
+    padding: 15px 20px; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+}
+
+.nav-tabs { 
+    display: flex; 
+    gap: 10px; 
+}
+
+.tab-btn { 
+    background: rgba(255,255,255,0.2); 
+    color: white; 
+    border: none; 
+    padding: 10px 18px; 
+    border-radius: 5px; 
+    cursor: pointer; 
+    font-weight: bold; 
+    transition: 0.2s; 
+}
+
+.tab-btn:hover, .tab-btn.activo { 
+    background: white; 
+    color: #007bff; 
+}
+
+.container { 
+    max-width: 1100px; 
+    margin: 20px auto; 
+    padding: 0 15px; 
+}
+
+/* Módulo de Ventas */
+.grid-ventas { 
+    display: grid; 
+    grid-template-columns: 1.8fr 1.2fr; 
+    gap: 20px; 
+}
+
+.modulo-ventas, .modulo-carrito, .modulo-stock { 
+    background: white; 
+    padding: 20px; 
+    border-radius: 8px; 
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
+}
+
+/* Buscador Desplegable estilo POS */
+.contenedor-buscador { 
+    position: relative; 
+    margin-bottom: 25px; 
+}
+
+.buscador { 
+    width: 100%; 
+    padding: 14px; 
+    border: 2px solid #007bff; 
+    border-radius: 6px; 
+    font-size: 18px; 
+    outline: none; 
+}
+
+.desplegable-resultados { 
+    position: absolute; 
+    top: 100%; 
+    left: 0; 
+    right: 0; 
+    background: white; 
+    border: 1px solid #ccc; 
+    border-top: none; 
+    border-radius: 0 0 6px 6px; 
+    max-height: 250px; 
+    overflow-y: auto; 
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+    z-index: 50; 
+    display: none; 
+}
+
+.item-resultado { 
+    padding: 12px 15px; 
+    border-bottom: 1px solid #eee; 
+    cursor: pointer; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+}
+
+.item-resultado:hover { 
+    background-color: #f0f7ff; 
+}
+
+/* Accesos Rápido / Favoritos */
+.titulo-favoritos { 
+    font-size: 14px; 
+    font-weight: bold; 
+    color: #666; 
+    margin-bottom: 10px; 
+    text-transform: uppercase; 
+    letter-spacing: 0.5px; 
+}
+
+.grid-favoritos { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); 
+    gap: 10px; 
+}
+
+.btn-favorito { 
+    background: #e9ecef; 
+    border: 1px solid #ced4da; 
+    padding: 12px 8px; 
+    border-radius: 6px; 
+    text-align: center; 
+    cursor: pointer; 
+    font-size: 13px; 
+    font-weight: bold; 
+    transition: 0.2s; 
+}
+
+.btn-favorito:hover { 
+    background: #007bff; 
+    color: white; 
+    border-color: #007bff; 
+}
+
+/* Carrito / Ticket de Venta */
+.tabla-carrito { 
+    width: 100%; 
+    border-collapse: collapse; 
+    margin-top: 15px; 
+}
+
+.tabla-carrito th, .tabla-carrito td { 
+    padding: 10px 5px; 
+    border-bottom: 1px solid #eee; 
+    text-align: left; 
+    font-size: 14px; 
+}
+
+.btn-eliminar { 
+    background: #dc3545; 
+    color: white; 
+    border: none; 
+    padding: 3px 7px; 
+    border-radius: 3px; 
+    cursor: pointer; 
+    font-size: 12px; 
+}
+
+.total-box { 
+    margin-top: 20px; 
+    font-size: 24px; 
+    font-weight: bold; 
+    text-align: right; 
+    color: #28a745; 
+}
+
+.btn-cobrar { 
+    width: 100%; 
+    background-color: #28a745; 
+    color: white; 
+    border: none; 
+    padding: 15px; 
+    font-size: 18px; 
+    font-weight: bold; 
+    border-radius: 6px; 
+    margin-top: 15px; 
+    cursor: pointer; 
+}
+
+.btn-cobrar:hover { 
+    background-color: #218838; 
+}
+
+/* Tablas e Interfaz General */
+.tabla-stock { 
+    width: 100%; 
+    border-collapse: collapse; 
+    margin-top: 10px; 
+}
+
+.tabla-stock th, .tabla-stock td { 
+    border: 1px solid #eee; 
+    padding: 12px; 
+    text-align: left; 
+}
+
+.tabla-stock th { 
+    background-color: #f8f9fa; 
+}
+
+.btn-crear { 
+    background: #28a745; 
+    color: white; 
+    border: none; 
+    padding: 10px 15px; 
+    font-weight: bold; 
+    border-radius: 5px; 
+    cursor: pointer; 
+}
+
+.seccion { 
+    display: none; 
+}
+
+.seccion.activa { 
+    display: block; 
+}
+
+/* Modales Generales */
+.modal { 
+    display: none; 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: rgba(0,0,0,0.6); 
+    justify-content: center; 
+    align-items: center; 
+    z-index: 100; 
+}
+
+.modal-contenido { 
+    background: white; 
+    padding: 25px; 
+    border-radius: 8px; 
+    width: 400px; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 12px; 
+}
+
+.modal-contenido input { 
+    padding: 12px; 
+    border: 1px solid #ccc; 
+    border-radius: 5px; 
+    font-size: 16px; 
+}
+
+.modal-acciones { 
+    display: flex; 
+    gap: 10px; 
+    margin-top: 10px; 
+}
+
+.btn-guardar { 
+    flex: 1; 
+    background: #28a745; 
+    color: white; 
+    border: none; 
+    padding: 12px; 
+    border-radius: 5px; 
+    font-weight: bold; 
+    cursor: pointer; 
+    font-size: 16px; 
+}
+
+.btn-cancelar { 
+    flex: 1; 
+    background: #dc3545; 
+    color: white; 
+    border: none; 
+    padding: 12px; 
+    border-radius: 5px; 
+    font-weight: bold; 
+    cursor: pointer; 
+    font-size: 16px; 
+}
+
+/* Modal de Cobro Específico */
+.medios-pago { 
+    display: grid; 
+    grid-template-columns: 1fr 1fr 1fr; 
+    gap: 10px; 
+    margin-bottom: 10px; 
+}
+
+.btn-pago { 
+    border: 2px solid #ccc; 
+    background: #f8f9fa; 
+    padding: 12px 5px; 
+    border-radius: 6px; 
+    font-weight: bold; 
+    cursor: pointer; 
+    font-size: 13px; 
+    text-align: center; 
+}
+
+.btn-pago.seleccionado { 
+    border-color: #007bff; 
+    background: #e7f1ff; 
+    color: #007bff; 
+}
+
+.billetes-rapidos { 
+    display: flex; 
+    gap: 5px; 
+    margin-top: 5px; 
+}
+
+.btn-billete { 
+    background: #e9ecef; 
+    border: 1px solid #ced4da; 
+    padding: 6px 10px; 
+    border-radius: 4px; 
+    font-size: 12px; 
+    font-weight: bold; 
+    cursor: pointer; 
+}
+
+.box-vuelto { 
+    background: #e8f5e9; 
+    border: 1px solid #c8e6c9; 
+    padding: 12px; 
+    border-radius: 6px; 
+    text-align: center; 
+    margin-top: 10px; 
+}
+
+.monto-vuelto { 
+    font-size: 26px; 
+    font-weight: bold; 
+    color: #2e7d32; 
+}
