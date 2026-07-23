@@ -52,13 +52,22 @@
         .seccion { display: none; }
         .seccion.activa { display: block; }
 
-        /* Modales */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
-        .modal-contenido { background: white; padding: 25px; border-radius: 8px; width: 350px; display: flex; flex-direction: column; gap: 12px; }
-        .modal-contenido input { padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        /* Modales Generales */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 100; }
+        .modal-contenido { background: white; padding: 25px; border-radius: 8px; width: 400px; display: flex; flex-direction: column; gap: 12px; }
+        .modal-contenido input { padding: 12px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
         .modal-acciones { display: flex; gap: 10px; margin-top: 10px; }
-        .btn-guardar { flex: 1; background: #28a745; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; }
-        .btn-cancelar { flex: 1; background: #dc3545; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .btn-guardar { flex: 1; background: #28a745; color: white; border: none; padding: 12px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 16px; }
+        .btn-cancelar { flex: 1; background: #dc3545; color: white; border: none; padding: 12px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 16px; }
+
+        /* Modal de Cobro Específico */
+        .medios-pago { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .btn-pago { border: 2px solid #ccc; background: #f8f9fa; padding: 12px 5px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; text-align: center; }
+        .btn-pago.seleccionado { border-color: #007bff; background: #e7f1ff; color: #007bff; }
+        .billetes-rapidos { display: flex; gap: 5px; margin-top: 5px; }
+        .btn-billete { background: #e9ecef; border: 1px solid #ced4da; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .box-vuelto { background: #e8f5e9; border: 1px solid #c8e6c9; padding: 12px; border-radius: 6px; text-align: center; margin-top: 10px; }
+        .monto-vuelto { font-size: 26px; font-weight: bold; color: #2e7d32; }
     </style>
 </head>
 <body>
@@ -77,18 +86,15 @@
     <section id="seccion-ventas" class="seccion activa">
         <div class="grid-ventas">
             <main class="modulo-ventas">
-                <!-- Buscador Principal -->
                 <div class="contenedor-buscador">
-                    <input type="text" id="buscador" class="buscador" placeholder="⚡ Pistoleá código o busca (ej: 5*codigo para multiplicar)..." autofocus onkeypress="manejarEnter(event)" oninput="buscarProductosLive()">
+                    <input type="text" id="buscador" class="buscador" placeholder="⚡ Pistoleá código o busca (ej: 5*codigo)..." autofocus onkeypress="manejarEnter(event)" oninput="buscarProductosLive()">
                     <div id="desplegable-resultados" class="desplegable-resultados"></div>
                 </div>
 
-                <!-- Botones de Acceso Rápido / Favoritos -->
                 <div class="titulo-favoritos">⭐ Productos Rápidos</div>
                 <div id="contenedor-favoritos" class="grid-favoritos"></div>
             </main>
 
-            <!-- Detalle de Venta -->
             <aside class="modulo-carrito">
                 <h2>Detalle de Venta</h2>
                 <table class="tabla-carrito">
@@ -106,7 +112,7 @@
                 <div class="total-box">
                     Total: $<span id="total-monto">0</span>
                 </div>
-                <button id="btn-cobrar" class="btn-cobrar" onclick="cobrar()">💵 COBRAR</button>
+                <button id="btn-cobrar" class="btn-cobrar" onclick="abrirModalCobro()">💵 COBRAR</button>
             </aside>
         </div>
     </section>
@@ -151,6 +157,44 @@
     </div>
 </div>
 
+<!-- Modal Cobro / Medios de Pago y Vuelto -->
+<div id="modal-cobro" class="modal">
+    <div class="modal-contenido">
+        <h2>Cobrar Venta</h2>
+        <p style="font-size:18px;">Total a Pagar: <strong style="color:#28a745;">$<span id="modal-total-pagar">0</span></strong></p>
+
+        <label style="font-size:13px; font-weight:bold; color:#666;">SELECCIONÁ MEDIO DE PAGO:</label>
+        <div class="medios-pago">
+            <button id="btn-pago-efectivo" class="btn-pago seleccionado" onclick="seleccionarMedioPago('Efectivo')">💵 Efectivo</button>
+            <button id="btn-pago-qr" class="btn-pago" onclick="seleccionarMedioPago('QR')">📲 QR MP</button>
+            <button id="btn-pago-transf" class="btn-pago" onclick="seleccionarMedioPago('Transferencia')">🏦 Transf.</button>
+        </div>
+
+        <!-- Bloque Calculadora de Vuelto (solo para Efectivo) -->
+        <div id="bloque-efectivo">
+            <label style="font-size:13px; font-weight:bold; color:#666;">PAGA CON ($):</label>
+            <input type="number" id="monto-recibido" placeholder="Ej: 5000" oninput="calcularVuelto()">
+            
+            <div class="billetes-rapidos">
+                <button class="btn-billete" onclick="setMontoRecibido(2000)">$2.000</button>
+                <button class="btn-billete" onclick="setMontoRecibido(5000)">$5.000</button>
+                <button class="btn-billete" onclick="setMontoRecibido(10000)">$10.000</button>
+                <button class="btn-billete" onclick="setMontoRecibido(20000)">$20.000</button>
+            </div>
+
+            <div class="box-vuelto">
+                <small style="color:#2e7d32; font-weight:bold;">VUELTO A ENTREGAR:</small>
+                <div class="monto-vuelto">$<span id="monto-vuelto-text">0</span></div>
+            </div>
+        </div>
+
+        <div class="modal-acciones">
+            <button id="btn-confirmar-venta" class="btn-guardar" onclick="confirmarVentaFinal()">✔ FINALIZAR VENTA</button>
+            <button class="btn-cancelar" onclick="cerrarModalCobro()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
 <script>
     const SUPABASE_URL = 'https://xsaqhiaiwgqfpghpxarl.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_85wjOI6fSpOsaH_Bw8Jn7Q_vP_n2JKJ';
@@ -158,6 +202,8 @@
 
     let productosGlobales = [];
     let carrito = [];
+    let medioPagoSeleccionado = 'Efectivo';
+    let totalVentaActual = 0;
 
     function cambiarPestaña(tab) {
         document.querySelectorAll('.seccion').forEach(s => s.classList.remove('activa'));
@@ -182,7 +228,6 @@
         renderizarTablaStock(productosGlobales);
     }
 
-    // Dibujar Favoritos mostrando STOCK
     function renderizarFavoritos(lista) {
         const contenedor = document.getElementById('contenedor-favoritos');
         contenedor.innerHTML = '';
@@ -200,12 +245,10 @@
         });
     }
 
-    // Búsqueda Live mostrando STOCK
     function buscarProductosLive() {
         let texto = document.getElementById('buscador').value.toLowerCase().trim();
         const desplegable = document.getElementById('desplegable-resultados');
 
-        // Si escribió el prefijo de cantidad (ej: 5* o 5x), lo omitimos solo para la búsqueda del nombre
         if (texto.includes('*')) texto = texto.split('*')[1] || '';
         if (texto.includes('x')) texto = texto.split('x')[1] || '';
 
@@ -247,7 +290,6 @@
         desplegable.style.display = 'block';
     }
 
-    // Lector / Teclado con soporte para Multiplicador (Ej: 5*codigo + Enter)
     function manejarEnter(e) {
         if (e.key === 'Enter') {
             const valorIngresado = document.getElementById('buscador').value.trim();
@@ -256,7 +298,6 @@
             let cantidad = 1;
             let terminoBusqueda = valorIngresado;
 
-            // Detectar si ingresó multiplicador con * o con x (ej: 3*779123456 o 3x779123456)
             if (valorIngresado.includes('*')) {
                 const partes = valorIngresado.split('*');
                 cantidad = parseInt(partes[0]) || 1;
@@ -280,7 +321,6 @@
         }
     }
 
-    // Pregunta cantidad si hace clic manual (Enter pasa directo con 1)
     function solicitarCantidadYAgregar(producto) {
         let cant = prompt(`¿Cuántas unidades de "${producto.nombre}" deseas agregar?`, "1");
         if (cant !== null) {
@@ -291,7 +331,6 @@
         }
     }
 
-    // Lógica del Carrito
     function agregarAlCarrito(producto, cantidad = 1) {
         if (producto.stock <= 0) {
             alert("⚠️ El producto no tiene stock disponible.");
@@ -302,7 +341,7 @@
         const cantidadPrevias = existe ? existe.cantidad : 0;
 
         if ((cantidadPrevias + cantidad) > producto.stock) {
-            alert(`⚠️ No podés agregar ${cantidad} unidades. Stock disponible: ${producto.stock} (ya tenés ${cantidadPrevias} en el carrito).`);
+            alert(`⚠️ No podés agregar ${cantidad} unidades. Stock disponible: ${producto.stock}.`);
             return;
         }
 
@@ -323,11 +362,11 @@
     function actualizarCarritoUI() {
         const tbody = document.getElementById('carrito-items-body');
         tbody.innerHTML = '';
-        let total = 0;
+        totalVentaActual = 0;
 
         carrito.forEach((item, index) => {
             const subtotal = item.precio * item.cantidad;
-            total += subtotal;
+            totalVentaActual += subtotal;
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -339,16 +378,72 @@
             tbody.appendChild(tr);
         });
 
-        document.getElementById('total-monto').innerText = total;
+        document.getElementById('total-monto').innerText = totalVentaActual;
     }
 
-    // Cobrar
-    async function cobrar() {
+    /* LÓGICA DE COBRO, MEDIOS DE PAGO Y VUELTO */
+    function abrirModalCobro() {
         if (carrito.length === 0) return alert("El carrito está vacío.");
 
-        const btn = document.getElementById('btn-cobrar');
+        document.getElementById('modal-total-pagar').innerText = totalVentaActual;
+        document.getElementById('monto-recibido').value = '';
+        document.getElementById('monto-vuelto-text').innerText = '0';
+        seleccionarMedioPago('Efectivo');
+        document.getElementById('modal-cobro').style.display = 'flex';
+        setTimeout(() => document.getElementById('monto-recibido').focus(), 100);
+    }
+
+    function cerrarModalCobro() {
+        document.getElementById('modal-cobro').style.display = 'none';
+    }
+
+    function seleccionarMedioPago(medio) {
+        medioPagoSeleccionado = medio;
+        document.querySelectorAll('.btn-pago').forEach(b => b.classList.remove('seleccionado'));
+
+        if (medio === 'Efectivo') {
+            document.getElementById('btn-pago-efectivo').classList.add('seleccionado');
+            document.getElementById('bloque-efectivo').style.display = 'block';
+        } else if (medio === 'QR') {
+            document.getElementById('btn-pago-qr').classList.add('seleccionado');
+            document.getElementById('bloque-efectivo').style.display = 'none';
+        } else {
+            document.getElementById('btn-pago-transf').classList.add('seleccionado');
+            document.getElementById('bloque-efectivo').style.display = 'none';
+        }
+    }
+
+    function setMontoRecibido(monto) {
+        document.getElementById('monto-recibido').value = monto;
+        calcularVuelto();
+    }
+
+    function calcularVuelto() {
+        const recibido = Number(document.getElementById('monto-recibido').value) || 0;
+        const vuelto = recibido - totalVentaActual;
+
+        const elementoVuelto = document.getElementById('monto-vuelto-text');
+        if (vuelto >= 0) {
+            elementoVuelto.innerText = vuelto;
+            elementoVuelto.style.color = '#2e7d32';
+        } else {
+            elementoVuelto.innerText = "Falta dinero";
+            elementoVuelto.style.color = '#dc3545';
+        }
+    }
+
+    async function confirmarVentaFinal() {
+        if (medioPagoSeleccionado === 'Efectivo') {
+            const recibido = Number(document.getElementById('monto-recibido').value) || 0;
+            if (recibido < totalVentaActual) {
+                alert("⚠️ El monto recibido en efectivo es menor al total a pagar.");
+                return;
+            }
+        }
+
+        const btn = document.getElementById('btn-confirmar-venta');
         btn.disabled = true;
-        btn.innerText = "Procesando...";
+        btn.innerText = "Guardando...";
 
         try {
             for (const item of carrito) {
@@ -356,15 +451,16 @@
                 await db.from('productos').update({ stock: nuevoStock }).eq('id', item.id);
             }
 
-            alert("¡Venta realizada exitosamente!");
+            alert(`¡Venta cobrada con éxito (${medioPagoSeleccionado})!`);
             carrito = [];
             actualizarCarritoUI();
+            cerrarModalCobro();
             await cargarProductos();
         } catch (e) {
             alert("Error al procesar el cobro.");
         } finally {
             btn.disabled = false;
-            btn.innerText = "💵 COBRAR";
+            btn.innerText = "✔ FINALIZAR VENTA";
             document.getElementById('buscador').focus();
         }
     }
@@ -386,7 +482,7 @@
         });
     }
 
-    // Modal
+    // Modal Producto
     function abrirModal() { document.getElementById('modal-producto').style.display = 'flex'; }
     function cerrarModal() {
         document.getElementById('modal-producto').style.display = 'none';
