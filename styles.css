@@ -10,7 +10,7 @@ body {
     color: #333; 
 }
 
-/* Encabezado */
+/* Encabezado Adaptable */
 header { 
     background-color: #007bff; 
     color: white; 
@@ -19,6 +19,12 @@ header {
     justify-content: space-between; 
     align-items: center; 
     box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+header h1 {
+    font-size: 20px;
 }
 
 .nav-tabs { 
@@ -30,11 +36,12 @@ header {
     background: rgba(255,255,255,0.2); 
     color: white; 
     border: none; 
-    padding: 10px 18px; 
+    padding: 8px 14px; 
     border-radius: 5px; 
     cursor: pointer; 
     font-weight: bold; 
     transition: 0.2s; 
+    font-size: 13px;
 }
 
 .tab-btn:hover, .tab-btn.activo { 
@@ -44,20 +51,20 @@ header {
 
 .container { 
     max-width: 1100px; 
-    margin: 20px auto; 
-    padding: 0 15px; 
+    margin: 15px auto; 
+    padding: 0 10px; 
 }
 
-/* Módulo de Ventas */
+/* Módulo de Ventas (Escritorio) */
 .grid-ventas { 
     display: grid; 
     grid-template-columns: 1.8fr 1.2fr; 
-    gap: 20px; 
+    gap: 15px; 
 }
 
 .modulo-ventas, .modulo-carrito, .modulo-stock { 
     background: white; 
-    padding: 20px; 
+    padding: 15px; 
     border-radius: 8px; 
     box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
 }
@@ -65,15 +72,15 @@ header {
 /* Buscador Desplegable estilo POS */
 .contenedor-buscador { 
     position: relative; 
-    margin-bottom: 25px; 
+    margin-bottom: 20px; 
 }
 
 .buscador { 
     width: 100%; 
-    padding: 14px; 
+    padding: 12px; 
     border: 2px solid #007bff; 
     border-radius: 6px; 
-    font-size: 18px; 
+    font-size: 16px; 
     outline: none; 
 }
 
@@ -94,7 +101,7 @@ header {
 }
 
 .item-resultado { 
-    padding: 12px 15px; 
+    padding: 10px 12px; 
     border-bottom: 1px solid #eee; 
     cursor: pointer; 
     display: flex; 
@@ -108,7 +115,7 @@ header {
 
 /* Accesos Rápido / Favoritos */
 .titulo-favoritos { 
-    font-size: 14px; 
+    font-size: 13px; 
     font-weight: bold; 
     color: #666; 
     margin-bottom: 10px; 
@@ -118,18 +125,18 @@ header {
 
 .grid-favoritos { 
     display: grid; 
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); 
-    gap: 10px; 
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); 
+    gap: 8px; 
 }
 
 .btn-favorito { 
     background: #e9ecef; 
     border: 1px solid #ced4da; 
-    padding: 12px 8px; 
+    padding: 10px 6px; 
     border-radius: 6px; 
     text-align: center; 
     cursor: pointer; 
-    font-size: 13px; 
+    font-size: 12px; 
     font-weight: bold; 
     transition: 0.2s; 
 }
@@ -144,14 +151,14 @@ header {
 .tabla-carrito { 
     width: 100%; 
     border-collapse: collapse; 
-    margin-top: 15px; 
+    margin-top: 10px; 
 }
 
 .tabla-carrito th, .tabla-carrito td { 
-    padding: 10px 5px; 
+    padding: 8px 4px; 
     border-bottom: 1px solid #eee; 
     text-align: left; 
-    font-size: 14px; 
+    font-size: 13px; 
 }
 
 .btn-eliminar { 
@@ -165,8 +172,8 @@ header {
 }
 
 .total-box { 
-    margin-top: 20px; 
-    font-size: 24px; 
+    margin-top: 15px; 
+    font-size: 22px; 
     font-weight: bold; 
     text-align: right; 
     color: #28a745; 
@@ -177,11 +184,11 @@ header {
     background-color: #28a745; 
     color: white; 
     border: none; 
-    padding: 15px; 
+    padding: 14px; 
     font-size: 18px; 
     font-weight: bold; 
     border-radius: 6px; 
-    margin-top: 15px; 
+    margin-top: 10px; 
     cursor: pointer; 
 }
 
@@ -189,17 +196,19 @@ header {
     background-color: #218838; 
 }
 
-/* Tablas e Interfaz General */
+/* Tablas e Inventario */
 .tabla-stock { 
     width: 100%; 
     border-collapse: collapse; 
     margin-top: 10px; 
+    min-width: 500px; /* Para permitir scroll en movil */
 }
 
 .tabla-stock th, .tabla-stock td { 
     border: 1px solid #eee; 
-    padding: 12px; 
+    padding: 10px; 
     text-align: left; 
+    font-size: 13px;
 }
 
 .tabla-stock th { 
@@ -210,10 +219,11 @@ header {
     background: #28a745; 
     color: white; 
     border: none; 
-    padding: 10px 15px; 
+    padding: 8px 12px; 
     font-weight: bold; 
     border-radius: 5px; 
     cursor: pointer; 
+    font-size: 13px;
 }
 
 .seccion { 
@@ -224,7 +234,7 @@ header {
     display: block; 
 }
 
-/* Modales Generales */
+/* Modales Adaptables */
 .modal { 
     display: none; 
     position: fixed; 
@@ -236,23 +246,27 @@ header {
     justify-content: center; 
     align-items: center; 
     z-index: 100; 
+    padding: 15px;
 }
 
 .modal-contenido { 
     background: white; 
-    padding: 25px; 
+    padding: 20px; 
     border-radius: 8px; 
-    width: 400px; 
+    width: 100%;
+    max-width: 400px; 
     display: flex; 
     flex-direction: column; 
-    gap: 12px; 
+    gap: 10px; 
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 .modal-contenido input { 
-    padding: 12px; 
+    padding: 10px; 
     border: 1px solid #ccc; 
     border-radius: 5px; 
-    font-size: 16px; 
+    font-size: 15px; 
 }
 
 .modal-acciones { 
@@ -266,11 +280,11 @@ header {
     background: #28a745; 
     color: white; 
     border: none; 
-    padding: 12px; 
+    padding: 10px; 
     border-radius: 5px; 
     font-weight: bold; 
     cursor: pointer; 
-    font-size: 16px; 
+    font-size: 15px; 
 }
 
 .btn-cancelar { 
@@ -278,29 +292,29 @@ header {
     background: #dc3545; 
     color: white; 
     border: none; 
-    padding: 12px; 
+    padding: 10px; 
     border-radius: 5px; 
     font-weight: bold; 
     cursor: pointer; 
-    font-size: 16px; 
+    font-size: 15px; 
 }
 
-/* Modal de Cobro Específico */
+/* Modal de Cobro */
 .medios-pago { 
     display: grid; 
     grid-template-columns: 1fr 1fr 1fr; 
-    gap: 10px; 
+    gap: 8px; 
     margin-bottom: 10px; 
 }
 
 .btn-pago { 
     border: 2px solid #ccc; 
     background: #f8f9fa; 
-    padding: 12px 5px; 
+    padding: 10px 4px; 
     border-radius: 6px; 
     font-weight: bold; 
     cursor: pointer; 
-    font-size: 13px; 
+    font-size: 12px; 
     text-align: center; 
 }
 
@@ -314,14 +328,16 @@ header {
     display: flex; 
     gap: 5px; 
     margin-top: 5px; 
+    flex-wrap: wrap;
 }
 
 .btn-billete { 
+    flex: 1;
     background: #e9ecef; 
     border: 1px solid #ced4da; 
-    padding: 6px 10px; 
+    padding: 6px 8px; 
     border-radius: 4px; 
-    font-size: 12px; 
+    font-size: 11px; 
     font-weight: bold; 
     cursor: pointer; 
 }
@@ -329,14 +345,43 @@ header {
 .box-vuelto { 
     background: #e8f5e9; 
     border: 1px solid #c8e6c9; 
-    padding: 12px; 
+    padding: 10px; 
     border-radius: 6px; 
     text-align: center; 
     margin-top: 10px; 
 }
 
 .monto-vuelto { 
-    font-size: 26px; 
+    font-size: 22px; 
     font-weight: bold; 
     color: #2e7d32; 
+}
+
+/* ===================================================
+   📱 REGLAS RESPONSIVE PARA CELULARES (Max Width 768px)
+   =================================================== */
+@media (max-width: 768px) {
+    header {
+        justify-content: center;
+        text-align: center;
+    }
+
+    .nav-tabs {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .tab-btn {
+        flex: 1;
+        text-align: center;
+    }
+
+    /* Convertimos Punto de Venta a 1 sola columna vertical */
+    .grid-ventas { 
+        grid-template-columns: 1fr; 
+    }
+
+    .modulo-stock {
+        overflow-x: auto; /* Permite scroll horizontal fluido en la tabla */
+    }
 }
