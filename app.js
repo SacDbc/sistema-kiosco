@@ -305,10 +305,15 @@ async function confirmarVentaFinal() {
     }
 }
 
-/* TABLA DE STOCK, EDICIÓN Y ELIMINACIÓN */
+/* TABLA DE STOCK, EDICIÓN, BUSCADOR INTELIGENTE Y EXPORTACIÓN */
 function renderizarTablaStock(lista) {
     const tbody = document.getElementById('tabla-body-stock');
     tbody.innerHTML = '';
+
+    if (lista.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#888;">No se encontraron productos.</td></tr>';
+        return;
+    }
 
     lista.forEach(prod => {
         const tr = document.createElement('tr');
@@ -325,6 +330,49 @@ function renderizarTablaStock(lista) {
         `;
         tbody.appendChild(tr);
     });
+}
+
+// Buscador Inteligente en vivo para la pestaña de Stock
+function filtrarTablaStock() {
+    const texto = document.getElementById('buscador-stock').value.toLowerCase().trim();
+    if (!texto) {
+        renderizarTablaStock(productosGlobales);
+        return;
+    }
+
+    const filtrados = productosGlobales.filter(p => 
+        p.nombre.toLowerCase().includes(texto) ||
+        (p.categoria && p.categoria.toLowerCase().includes(texto)) ||
+        (p.codigo_barras && p.codigo_barras.includes(texto))
+    );
+
+    renderizarTablaStock(filtrados);
+}
+
+// EXPORTAR PRODUCTOS A EXCEL / CSV
+function exportarProductosCSV() {
+    if (productosGlobales.length === 0) return alert("No hay productos cargados para exportar.");
+
+    let contenidoCSV = "nombre,categoria,precio,stock,codigo_barras\n";
+
+    productosGlobales.forEach(prod => {
+        const nombre = `"${(prod.nombre || '').replace(/"/g, '""')}"`;
+        const cat = `"${(prod.categoria || 'General').replace(/"/g, '""')}"`;
+        const precio = prod.precio || 0;
+        const stock = prod.stock || 0;
+        const codigo = prod.codigo_barras || '';
+
+        contenidoCSV += `${nombre},${cat},${precio},${stock},${codigo}\n`;
+    });
+
+    const blob = new Blob([contenidoCSV], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `inventario_kiosco_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 function abrirModalCrear() {
@@ -477,7 +525,6 @@ async function aplicarAumentoMasivo() {
         let nuevoPrecio = prod.precio * (1 + (porcentaje / 100));
 
         if (redondear) {
-            // Redondea hacia arriba al múltiplo de 100 más cercano (Ej: $2120 ➔ $2200)
             nuevoPrecio = Math.ceil(nuevoPrecio / 100) * 100;
         } else {
             nuevoPrecio = Math.round(nuevoPrecio);
@@ -532,7 +579,6 @@ async function procesarArchivoCSV() {
             const lineas = texto.split('\n');
             const nuevosProductos = [];
 
-            // Empezamos desde i=1 para saltearnos la cabecera (nombre, categoria, etc)
             for (let i = 1; i < lineas.length; i++) {
                 const linea = lineas[i].trim();
                 if (!linea) continue;
@@ -560,7 +606,6 @@ async function procesarArchivoCSV() {
             if (nuevosProductos.length === 0) {
                 alert("No se encontraron productos válidos en el archivo.");
             } else {
-                // Inserción masiva en Supabase en 1 sola consulta
                 const { error } = await db.from('productos').insert(nuevosProductos);
 
                 if (error) {
