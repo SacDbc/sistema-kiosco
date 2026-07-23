@@ -11,15 +11,26 @@
         body { background-color: #f4f6f9; color: #333; padding: 20px; }
         .container { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
         header { grid-column: span 2; background-color: #007bff; color: white; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-header { background: #17a2b8; color: white; border: none; padding: 8px 15px; font-weight: bold; border-radius: 5px; cursor: pointer; }
+        .btn-header:hover { background: #138496; }
         .modulo-ventas, .modulo-carrito { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .buscador { width: 100%; padding: 12px; margin-bottom: 20px; border: 2px solid #007bff; border-radius: 5px; font-size: 16px; outline: none; }
         .lista-productos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .producto-card { border: 1px solid #eee; padding: 15px; border-radius: 5px; text-align: center; cursor: pointer; transition: 0.2s; }
+        .producto-card { border: 1px solid #eee; padding: 15px; border-radius: 5px; text-align: center; cursor: pointer; transition: 0.2s; position: relative; }
         .producto-card:hover { border-color: #007bff; background-color: #f0f7ff; }
         .item-carrito { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
         .total-box { margin-top: 20px; font-size: 22px; font-weight: bold; text-align: right; color: #28a745; }
         .btn-cobrar { width: 100%; background-color: #28a745; color: white; border: none; padding: 15px; font-size: 18px; font-weight: bold; border-radius: 5px; margin-top: 15px; cursor: pointer; }
         .btn-cobrar:hover { background-color: #218838; }
+
+        /* Ventana Modal para Alta de Productos */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
+        .modal-contenido { background: white; padding: 25px; border-radius: 8px; width: 350px; display: flex; flex-direction: column; gap: 12px; }
+        .modal-contenido h2 { margin-bottom: 10px; font-size: 20px; }
+        .modal-contenido input { padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; }
+        .modal-acciones { display: flex; gap: 10px; margin-top: 10px; }
+        .btn-guardar { flex: 1; background: #28a745; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .btn-cancelar { flex: 1; background: #dc3545; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -27,7 +38,10 @@
 <div class="container">
     <header>
         <h1>🏪 KioscoEnLínea (Demo)</h1>
-        <span>Cajero: <strong>Empleado 1</strong></span>
+        <div>
+            <button class="btn-header" onclick="abrirModal()">➕ Agregar Producto</button>
+            <span style="margin-left: 10px;">Cajero: <strong>Empleado 1</strong></span>
+        </div>
     </header>
 
     <!-- Módulo de Productos -->
@@ -42,13 +56,29 @@
     <aside class="modulo-carrito">
         <h2>Detalle de Venta</h2>
         <div id="carrito-items">
-            <!-- Los productos seleccionados aparecerán acá -->
+            <!-- Productos seleccionados -->
         </div>
         <div class="total-box">
             Total: $<span id="total-monto">0</span>
         </div>
         <button class="btn-cobrar" onclick="cobrar()">💵 COBRAR</button>
     </aside>
+</div>
+
+<!-- Modal / Ventana Emergente de Carga de Producto -->
+<div id="modal-producto" class="modal">
+    <div class="modal-contenido">
+        <h2>Nuevo Producto</h2>
+        <input type="text" id="p-nombre" placeholder="Nombre del producto (Ej: Coca 500ml)">
+        <input type="number" id="p-precio" placeholder="Precio ($)">
+        <input type="number" id="p-stock" placeholder="Stock Inicial">
+        <input type="text" id="p-codigo" placeholder="Código de Barras (Opcional)">
+        
+        <div class="modal-acciones">
+            <button class="btn-guardar" onclick="guardarNuevoProducto()">Guardar</button>
+            <button class="btn-cancelar" onclick="cerrarModal()">Cancelar</button>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -60,7 +90,7 @@
     let productosGlobales = [];
     let carrito = [];
 
-    // 2. Traer productos reales desde Supabase
+    // 2. Traer productos desde Supabase
     async function cargarProductos() {
         const { data, error } = await db.from('productos').select('*');
 
@@ -74,7 +104,7 @@
         renderizarProductos(productosGlobales);
     }
 
-    // 3. Dibujar las tarjetas de productos
+    // 3. Dibujar productos
     function renderizarProductos(lista) {
         const contenedor = document.getElementById('contenedor-productos');
         contenedor.innerHTML = '';
@@ -97,23 +127,64 @@
         });
     }
 
-    // 4. Lógica para Lector de Código de Barras (al presionar ENTER)
+    // 4. Lógica de Alta de Productos (Modal)
+    function abrirModal() {
+        document.getElementById('modal-producto').style.display = 'flex';
+    }
+
+    function cerrarModal() {
+        document.getElementById('modal-producto').style.display = 'none';
+        document.getElementById('p-nombre').value = '';
+        document.getElementById('p-precio').value = '';
+        document.getElementById('p-stock').value = '';
+        document.getElementById('p-codigo').value = '';
+    }
+
+    async function guardarNuevoProducto() {
+        const nombre = document.getElementById('p-nombre').value.trim();
+        const precio = Number(document.getElementById('p-precio').value);
+        const stock = Number(document.getElementById('p-stock').value);
+        const codigo = document.getElementById('p-codigo').value.trim();
+
+        if (!nombre || !precio) {
+            alert("Por favor completá al menos el nombre y el precio.");
+            return;
+        }
+
+        const nuevoItem = {
+            nombre: nombre,
+            precio: precio,
+            stock: stock || 0,
+            codigo_barras: codigo || null
+        };
+
+        const { data, error } = await db.from('productos').insert([nuevoItem]);
+
+        if (error) {
+            console.error('Error al guardar:', error);
+            alert("Ocurrió un error al guardar el producto.");
+        } else {
+            alert("¡Producto guardado exitosamente!");
+            cerrarModal();
+            cargarProductos(); // Recargamos la lista actualizada
+        }
+    }
+
+    // 5. Lector de Código de Barras (al presionar ENTER)
     function manejarEnter(e) {
         if (e.key === 'Enter') {
             const valorIngresado = document.getElementById('buscador').value.trim();
-            
-            // Buscamos si existe un producto con ese código de barras exacto
             const productoEncontrado = productosGlobales.find(p => p.codigo_barras === valorIngresado);
 
             if (productoEncontrado) {
                 agregarAlCarrito(productoEncontrado);
-                document.getElementById('buscador').value = ''; // Limpiamos para el próximo producto
+                document.getElementById('buscador').value = '';
                 renderizarProductos(productosGlobales);
             }
         }
     }
 
-    // 5. Filtrar mientras escribe
+    // 6. Filtrar por buscador
     function filtrarProductos() {
         const texto = document.getElementById('buscador').value.toLowerCase().trim();
         const filtrados = productosGlobales.filter(p => 
@@ -123,7 +194,7 @@
         renderizarProductos(filtrados);
     }
 
-    // 6. Lógica del carrito
+    // 7. Lógica del carrito
     function agregarAlCarrito(producto) {
         carrito.push(producto);
         actualizarCarritoUI();
@@ -145,7 +216,7 @@
         document.getElementById('total-monto').innerText = total;
     }
 
-    // 7. Simular cobro
+    // 8. Simular cobro
     function cobrar() {
         if (carrito.length === 0) {
             alert("El carrito está vacío.");
@@ -157,7 +228,7 @@
         document.getElementById('buscador').focus();
     }
 
-    // Ejecutar al cargar la página
+    // Cargar productos al iniciar
     cargarProductos();
 </script>
 
