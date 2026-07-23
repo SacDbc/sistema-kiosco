@@ -332,19 +332,25 @@ function renderizarTablaStock(lista) {
     });
 }
 
-// Buscador Inteligente en vivo para la pestaña de Stock
+// Buscador Inteligente en vivo para la pestaña de Stock (Corregido)
 function filtrarTablaStock() {
-    const texto = document.getElementById('buscador-stock').value.toLowerCase().trim();
+    const input = document.getElementById('buscador-stock');
+    if (!input) return;
+
+    const texto = input.value.toLowerCase().trim();
+    
     if (!texto) {
         renderizarTablaStock(productosGlobales);
         return;
     }
 
-    const filtrados = productosGlobales.filter(p => 
-        p.nombre.toLowerCase().includes(texto) ||
-        (p.categoria && p.categoria.toLowerCase().includes(texto)) ||
-        (p.codigo_barras && p.codigo_barras.includes(texto))
-    );
+    const filtrados = productosGlobales.filter(p => {
+        const nombre = (p.nombre || '').toLowerCase();
+        const categoria = (p.categoria || 'general').toLowerCase();
+        const codigo = (p.codigo_barras || '').toString().toLowerCase();
+
+        return nombre.includes(texto) || categoria.includes(texto) || codigo.includes(texto);
+    });
 
     renderizarTablaStock(filtrados);
 }
