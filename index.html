@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiosco - Panel de Ventas</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        body { background-color: #f4f6f9; color: #333; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        header { grid-column: span 2; background-color: #007bff; color: white; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .modulo-ventas, .modulo-carrito { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .buscador { width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+        .lista-productos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .producto-card { border: 1px solid #eee; padding: 15px; border-radius: 5px; text-align: center; cursor: pointer; transition: 0.2s; }
+        .producto-card:hover { border-color: #007bff; background-color: #f0f7ff; }
+        .item-carrito { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .total-box { margin-top: 20px; font-size: 22px; font-weight: bold; text-align: right; color: #28a745; }
+        .btn-cobrar { width: 100%; background-color: #28a745; color: white; border: none; padding: 15px; font-size: 18px; font-weight: bold; border-radius: 5px; margin-top: 15px; cursor: pointer; }
+        .btn-cobrar:hover { background-color: #218838; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>🏪 KioscoEnLínea (Demo)</h1>
+        <span>Cajero: <strong>Empleado 1</strong></span>
+    </header>
+
+    <!-- Módulo de Productos -->
+    <main class="modulo-ventas">
+        <input type="text" class="buscador" placeholder="🔍 Buscar por nombre o código de barras...">
+        <div class="lista-productos">
+            <!-- Esto después se cargará automáticamente desde Supabase -->
+            <div class="producto-card">
+                <h3>Alfajor Jorgito</h3>
+                <p>$800</p>
+            </div>
+            <div class="producto-card">
+                <h3>Gaseosa 500ml</h3>
+                <p>$1500</p>
+            </div>
+            <div class="producto-card">
+                <h3>Chicles Beldent</h3>
+                <p>$500</p>
+            </div>
+            <div class="producto-card">
+                <h3>Papas Fritas</h3>
+                <p>$1200</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Módulo de Ticket / Carrito -->
+    <aside class="modulo-carrito">
+        <h2>Detalle de Venta</h2>
+        <div id="carrito-items">
+            <div class="item-carrito">
+                <span>1x Alfajor Jorgito</span>
+                <strong>$800</strong>
+            </div>
+            <div class="item-carrito">
+                <span>1x Gaseosa 500ml</span>
+                <strong>$1500</strong>
+            </div>
+        </div>
+        <div class="total-box">
+            Total: $2300
+        </div>
+        <button class="btn-cobrar">💵 COBRAR (F10)</button>
+    </aside>
+</div>
+
+</body>
+</html>
