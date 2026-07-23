@@ -8,6 +8,7 @@ let ventasGlobales = [];
 let carrito = [];
 let medioPagoSeleccionado = 'Efectivo';
 let totalVentaActual = 0;
+let mostrandoSoloBajoStock = false;
 
 // Navegación Pestañas
 function cambiarPestaña(tab) {
@@ -80,10 +81,17 @@ function renderizarFavoritos(lista) {
         const btn = document.createElement('button');
         btn.className = 'btn-favorito';
         btn.onclick = () => solicitarCantidadYAgregar(prod);
+        
+        let colorStock = '#888';
+        if (prod.stock <= 0) colorStock = 'red';
+        else if (prod.stock <= (prod.stock_minimo || 3)) colorStock = '#d97706'; // Naranja
+
         btn.innerHTML = `
             ${prod.nombre}<br>
             <span style="color:#28a745;">$${prod.precio}</span><br>
-            <small style="color:${prod.stock > 0 ? '#888' : 'red'}; font-weight:normal;">Stock: ${prod.stock}</small>
+            <small style="color:${colorStock}; font-weight:${prod.stock <= 0 ? 'bold' : 'normal'};">
+                ${prod.stock <= 0 ? 'SIN STOCK (' + prod.stock + ')' : 'Stock: ' + prod.stock}
+            </small>
         `;
         contenedor.appendChild(btn);
     });
@@ -122,10 +130,12 @@ function buscarProductosLive() {
             desplegable.style.display = 'none';
             document.getElementById('buscador').focus();
         };
+
+        let colorStockText = prod.stock <= 0 ? 'red' : '#666';
         item.innerHTML = `
             <div>
                 <strong>${prod.nombre}</strong> <small style="color:#888;">[${prod.categoria || 'General'}]</small><br>
-                <small style="color:${prod.stock > 0 ? '#666' : 'red'}; font-weight:bold;">Stock disponible: ${prod.stock} u.</small>
+                <small style="color:${colorStockText}; font-weight:bold;">Stock disponible: ${prod.stock} u.</small>
             </div>
             <strong style="color:#28a745; font-size:16px;">$${prod.precio}</strong>
         `;
@@ -176,19 +186,14 @@ function solicitarCantidadYAgregar(producto) {
     }
 }
 
+// LÓGICA DE AGREGAR AL CARRITO (Acepta Venta con Stock Cero / Insuficiente)
 function agregarAlCarrito(producto, cantidad = 1) {
     if (producto.stock <= 0) {
-        alert("⚠️ El producto no tiene stock disponible.");
-        return;
+        // Advertencia visual suave pero PERMITE vender
+        console.warn(`⚠️ Vendiendo producto sin stock registrado: ${producto.nombre}`);
     }
 
     const existe = carrito.find(item => item.id === producto.id);
-    const cantidadPrevias = existe ? existe.cantidad : 0;
-
-    if ((cantidadPrevias + cantidad) > producto.stock) {
-        alert(`⚠️ No podés agregar ${cantidad} unidades. Stock disponible: ${producto.stock}.`);
-        return;
-    }
 
     if (existe) {
         existe.cantidad += cantidad;
@@ -226,7 +231,7 @@ function actualizarCarritoUI() {
     document.getElementById('total-monto').innerText = totalVentaActual;
 }
 
-/* MEDIOS DE PAGO, VUELTO Y GUARDADO DE VENTA */
+/* MEDIOS DE PAGO Y COBRO */
 function abrirModalCobro() {
     if (carrito.length === 0) return alert("El carrito está vacío.");
 
@@ -291,24 +296,19 @@ async function confirmarVentaFinal() {
     btn.innerText = "Guardando...";
 
     try {
-        // 1. Descontar Stock de los productos
+        // Descuenta el stock permitiendo números negativos si no había suficiente
         for (const item of carrito) {
             const nuevoStock = item.stock - item.cantidad;
             await db.from('productos').update({ stock: nuevoStock }).eq('id', item.id);
         }
 
-        // 2. Registrar la venta en la tabla 'ventas'
         const registroVenta = {
             monto_total: totalVentaActual,
             medio_pago: medioPagoSeleccionado,
             items: carrito.map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio }))
         };
 
-        const { error: errVenta } = await db.from('ventas').insert([registroVenta]);
-
-        if (errVenta) {
-            console.error('Error al guardar historial de venta:', errVenta);
-        }
+        await db.from('ventas').insert([registroVenta]);
 
         alert(`¡Venta cobrada y registrada con éxito (${medioPagoSeleccionado})!`);
         carrito = [];
@@ -324,18 +324,13 @@ async function confirmarVentaFinal() {
     }
 }
 
-/* HISTORIAL DE VENTAS Y RECAUDACIÓN */
+/* HISTORIAL Y CIERRE DE CAJA */
 async function cargarHistorialVentas() {
     const tbody = document.getElementById('tabla-body-historial');
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Cargando historial...</td></tr>';
 
     const { data, error } = await db.from('ventas').select('*').order('id', { ascending: false }).limit(50);
-
-    if (error) {
-        console.error('Error al cargar historial:', error);
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Error al cargar ventas.</td></tr>';
-        return;
-    }
+    if (error) return;
 
     ventasGlobales = data;
     renderizarHistorial(ventasGlobales);
@@ -361,11 +356,8 @@ function renderizarHistorial(ventas) {
         else if (v.medio_pago === 'QR') qr += monto;
         else if (v.medio_pago === 'Transferencia') transf += monto;
 
-        // Formatear Fecha
         const fechaObj = new Date(v.created_at);
         const fechaHora = fechaObj.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-
-        // Formatear Ítems
         const detalleItems = (v.items || []).map(i => `${i.cantidad}x ${i.nombre}`).join(', ');
 
         const tr = document.createElement('tr');
@@ -388,7 +380,7 @@ function actualizarTotalesCaja(total, efectivo, qr, transf) {
     document.getElementById('caja-transf').innerText = `$${transf}`;
 }
 
-/* TABLA DE STOCK, EDICIÓN, BUSCADOR INTELIGENTE Y EXPORTACIÓN */
+/* TABLA DE STOCK, ALERTAS Y BUSCADOR */
 function renderizarTablaStock(lista) {
     const tbody = document.getElementById('tabla-body-stock');
     tbody.innerHTML = '';
@@ -399,13 +391,24 @@ function renderizarTablaStock(lista) {
     }
 
     lista.forEach(prod => {
+        const stockMin = prod.stock_minimo !== undefined ? prod.stock_minimo : 3;
+        let etiquetaStock = '';
+
+        if (prod.stock <= 0) {
+            etiquetaStock = `<span style="color:red; font-weight:bold; background:#ffe6e6; padding:2px 6px; border-radius:4px;">⚠️ ${prod.stock} u. (SIN STOCK)</span>`;
+        } else if (prod.stock <= stockMin) {
+            etiquetaStock = `<span style="color:#d97706; font-weight:bold; background:#fef3c7; padding:2px 6px; border-radius:4px;">⚠️ ${prod.stock} u. (BAJO)</span>`;
+        } else {
+            etiquetaStock = `<span style="color:green; font-weight:bold;">${prod.stock} u.</span>`;
+        }
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><span style="background:#e9ecef; padding:3px 7px; border-radius:4px; font-size:12px;">${prod.categoria || 'General'}</span></td>
             <td><code>${prod.codigo_barras || 'N/A'}</code></td>
             <td><strong>${prod.nombre}</strong></td>
             <td>$${prod.precio}</td>
-            <td><span style="color: ${prod.stock > 0 ? 'green' : 'red'}; font-weight: bold;">${prod.stock}</span> u.</td>
+            <td>${etiquetaStock}</td>
             <td>
                 <button onclick="abrirModalEditar(${prod.id})" style="background:#ffc107; color:#333; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; font-weight:bold; margin-right:5px;">✏️ Editar</button>
                 <button onclick="eliminarProducto(${prod.id})" style="background:#dc3545; color:white; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; font-weight:bold;">🗑️ Borrar</button>
@@ -413,6 +416,26 @@ function renderizarTablaStock(lista) {
         `;
         tbody.appendChild(tr);
     });
+}
+
+// Filtro rápido de Alertas de Reposición
+function filtrarStockBajo() {
+    mostrandoSoloBajoStock = !mostrandoSoloBajoStock;
+    const btn = event.target;
+
+    if (mostrandoSoloBajoStock) {
+        btn.innerText = "📋 Ver Todos los Productos";
+        btn.style.background = "#007bff";
+        btn.style.color = "white";
+
+        const repuestos = productosGlobales.filter(p => p.stock <= (p.stock_minimo !== undefined ? p.stock_minimo : 3));
+        renderizarTablaStock(repuestos);
+    } else {
+        btn.innerText = "⚠️ Ver Bajo Stock / Reponer";
+        btn.style.background = "#ffc107";
+        btn.style.color = "#333";
+        renderizarTablaStock(productosGlobales);
+    }
 }
 
 function filtrarTablaStock() {
@@ -440,15 +463,8 @@ function exportarProductosCSV() {
     if (productosGlobales.length === 0) return alert("No hay productos cargados para exportar.");
 
     let contenidoCSV = "nombre,categoria,precio,stock,codigo_barras\n";
-
     productosGlobales.forEach(prod => {
-        const nombre = `"${(prod.nombre || '').replace(/"/g, '""')}"`;
-        const cat = `"${(prod.categoria || 'General').replace(/"/g, '""')}"`;
-        const precio = prod.precio || 0;
-        const stock = prod.stock || 0;
-        const codigo = prod.codigo_barras || '';
-
-        contenidoCSV += `${nombre},${cat},${precio},${stock},${codigo}\n`;
+        contenidoCSV += `"${prod.nombre}","${prod.categoria || 'General'}",${prod.precio},${prod.stock},${prod.codigo_barras || ''}\n`;
     });
 
     const blob = new Blob([contenidoCSV], { type: 'text/csv;charset=utf-8;' });
@@ -468,6 +484,7 @@ function abrirModalCrear() {
     document.getElementById('p-categoria-select').value = 'General';
     document.getElementById('p-precio').value = '';
     document.getElementById('p-stock').value = '';
+    document.getElementById('p-stock-minimo').value = '3';
     document.getElementById('p-codigo').value = '';
     document.getElementById('modal-producto').style.display = 'flex';
 }
@@ -482,6 +499,7 @@ function abrirModalEditar(id) {
     document.getElementById('p-categoria-select').value = prod.categoria || 'General';
     document.getElementById('p-precio').value = prod.precio;
     document.getElementById('p-stock').value = prod.stock;
+    document.getElementById('p-stock-minimo').value = prod.stock_minimo !== undefined ? prod.stock_minimo : 3;
     document.getElementById('p-codigo').value = prod.codigo_barras || '';
     document.getElementById('modal-producto').style.display = 'flex';
 }
@@ -496,6 +514,7 @@ async function guardarProducto() {
     const categoria = document.getElementById('p-categoria-select').value || 'General';
     const precio = Number(document.getElementById('p-precio').value);
     const stock = Number(document.getElementById('p-stock').value);
+    const stockMin = Number(document.getElementById('p-stock-minimo').value);
     const codigo = document.getElementById('p-codigo').value.trim();
 
     if (!nombre || !precio) return alert("Completá nombre y precio.");
@@ -504,7 +523,8 @@ async function guardarProducto() {
         nombre,
         categoria,
         precio,
-        stock: stock || 0,
+        stock: isNaN(stock) ? 0 : stock,
+        stock_minimo: isNaN(stockMin) ? 3 : stockMin,
         codigo_barras: codigo || null
     };
 
@@ -539,7 +559,7 @@ async function eliminarProducto(id) {
     }
 }
 
-/* GESTOR DE CATEGORÍAS */
+/* CATEGORÍAS */
 function abrirModalCategorias() {
     renderizarListaCategoriasModal();
     document.getElementById('modal-categorias').style.display = 'flex';
@@ -590,7 +610,7 @@ async function borrarCategoria(id, nombre) {
     }
 }
 
-/* AUMENTO MASIVO CON REDONDEO INTELIGENTE A MÚLTIPLOS DE $100 */
+/* AUMENTO MASIVO */
 async function aplicarAumentoMasivo() {
     const categoriaSel = document.getElementById('aumento-categoria').value;
     const porcentaje = Number(document.getElementById('aumento-porcentaje').value);
@@ -601,11 +621,7 @@ async function aplicarAumentoMasivo() {
     const aActualizar = productosGlobales.filter(p => !categoriaSel || (p.categoria || 'General') === categoriaSel);
     if (aActualizar.length === 0) return alert("No hay productos en la categoría seleccionada.");
 
-    const mensaje = categoriaSel 
-        ? `¿Confirmás aumentar un ${porcentaje}% a todos los productos de la categoría "${categoriaSel}"?`
-        : `¿Confirmás aumentar un ${porcentaje}% a TODOS los productos del kiosco?`;
-
-    if (!confirm(mensaje)) return;
+    if (!confirm(`¿Confirmás aumentar un ${porcentaje}%?`)) return;
 
     for (const prod of aActualizar) {
         let nuevoPrecio = prod.precio * (1 + (porcentaje / 100));
@@ -624,7 +640,7 @@ async function aplicarAumentoMasivo() {
     await cargarProductos();
 }
 
-/* IMPORTACIÓN DESDE ARCHIVOS CSV / EXCEL */
+/* IMPORTACIÓN CSV */
 function abrirModalImportar() {
     document.getElementById('modal-importar').style.display = 'flex';
 }
@@ -635,7 +651,7 @@ function cerrarModalImportar() {
 }
 
 function descargarPlantillaCSV() {
-    const contenidoCSV = "nombre,categoria,precio,stock,codigo_barras\nCoca Cola 500ml,Bebidas,1500,20,779123456\nAlfajor Fantoche,Golosinas,600,50,779987654\nMarlboro Red 20,Cigarrillos,3800,15,779112233";
+    const contenidoCSV = "nombre,categoria,precio,stock,codigo_barras\nCoca Cola 500ml,Bebidas,1500,20,779123456\nAlfajor Fantoche,Golosinas,600,50,779987654";
     const blob = new Blob([contenidoCSV], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -648,21 +664,17 @@ function descargarPlantillaCSV() {
 
 async function procesarArchivoCSV() {
     const input = document.getElementById('archivo-csv');
-    if (!input.files || input.files.length === 0) {
-        return alert("Por favor seleccioná un archivo CSV.");
-    }
+    if (!input.files || input.files.length === 0) return alert("Por favor seleccioná un archivo CSV.");
 
     const archivo = input.files[0];
     const lector = new FileReader();
 
     const btn = document.getElementById('btn-procesar-importacion');
     btn.disabled = true;
-    btn.innerText = "Cargando en Supabase...";
 
     lector.onload = async function(e) {
         try {
-            const texto = e.target.result;
-            const lineas = texto.split('\n');
+            const lineas = e.target.result.split('\n');
             const nuevosProductos = [];
 
             for (let i = 1; i < lineas.length; i++) {
@@ -678,37 +690,21 @@ async function procesarArchivoCSV() {
                     const codigo = columnas[4]?.trim() || null;
 
                     if (nombre && !isNaN(precio)) {
-                        nuevosProductos.push({
-                            nombre,
-                            categoria,
-                            precio,
-                            stock,
-                            codigo_barras: codigo
-                        });
+                        nuevosProductos.push({ nombre, categoria, precio, stock, codigo_barras: codigo, stock_minimo: 3 });
                     }
                 }
             }
 
-            if (nuevosProductos.length === 0) {
-                alert("No se encontraron productos válidos en el archivo.");
-            } else {
-                const { error } = await db.from('productos').insert(nuevosProductos);
-
-                if (error) {
-                    console.error('Error en importación:', error);
-                    alert("Ocurrió un error al cargar algunos productos.");
-                } else {
-                    alert(`¡Se importaron ${nuevosProductos.length} productos con éxito!`);
-                    cerrarModalImportar();
-                    await cargarProductos();
-                }
+            if (nuevosProductos.length > 0) {
+                await db.from('productos').insert(nuevosProductos);
+                alert(`¡Se importaron ${nuevosProductos.length} productos con éxito!`);
+                cerrarModalImportar();
+                await cargarProductos();
             }
         } catch (err) {
-            console.error(err);
-            alert("Error al leer el archivo. Verificá que tenga el formato CSV adecuado.");
+            alert("Error al procesar el archivo.");
         } finally {
             btn.disabled = false;
-            btn.innerText = "🚀 Cargar Productos";
         }
     };
 
