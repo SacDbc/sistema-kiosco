@@ -9,7 +9,7 @@
 </head>
 <body>
 
-<header>
+<header class="no-print">
     <h1>🏪 KioscoEnLínea</h1>
     <nav class="nav-tabs">
         <button id="btn-tab-ventas" class="tab-btn activo" onclick="cambiarPestaña('ventas')">🛒 Punto de Venta</button>
@@ -18,7 +18,7 @@
     </nav>
 </header>
 
-<div class="container">
+<div class="container no-print">
 
     <section id="seccion-ventas" class="seccion activa">
         <div class="grid-ventas">
@@ -135,6 +135,7 @@
                             <th>Medio de Pago</th>
                             <th>Detalle de Productos</th>
                             <th>Total Venta</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="tabla-body-historial"></tbody>
@@ -145,7 +146,7 @@
 
 </div>
 
-<div id="modal-producto" class="modal">
+<div id="modal-producto" class="modal no-print">
     <div class="modal-contenido">
         <h2 id="modal-titulo-prod">Nuevo Producto</h2>
         <input type="hidden" id="p-id">
@@ -170,7 +171,7 @@
     </div>
 </div>
 
-<div id="modal-importar" class="modal">
+<div id="modal-importar" class="modal no-print">
     <div class="modal-contenido" style="max-width:500px;">
         <h2>📥 Importar Productos desde Excel</h2>
         
@@ -196,7 +197,7 @@
     </div>
 </div>
 
-<div id="modal-categorias" class="modal">
+<div id="modal-categorias" class="modal no-print">
     <div class="modal-contenido">
         <h2>Gestor de Categorías</h2>
         
@@ -213,7 +214,7 @@
     </div>
 </div>
 
-<div id="modal-cobro" class="modal">
+<div id="modal-cobro" class="modal no-print">
     <div class="modal-contenido">
         <h2>Cobrar Venta</h2>
         <p style="font-size:18px;">Total a Pagar: <strong style="color:#28a745;">$<span id="modal-total-pagar">0</span></strong></p>
@@ -242,12 +243,19 @@
             </div>
         </div>
 
+        <div style="margin-top:10px; border-top:1px solid #eee; padding-top:10px;">
+            <label style="font-size:12px; font-weight:bold; color:#666;">TELÉFONO CLIENTE (Opcional para WhatsApp):</label>
+            <input type="tel" id="tel-cliente" placeholder="Ej: 5492611234567" style="width:100%; margin-top:4px;">
+        </div>
+
         <div class="modal-acciones">
-            <button id="btn-confirmar-venta" class="btn-guardar" onclick="confirmarVentaFinal()">✔ FINALIZAR VENTA</button>
+            <button id="btn-confirmar-venta" class="btn-guardar" onclick="confirmarVentaFinal()">✔ COBRAR VENTA</button>
             <button class="btn-cancelar" onclick="cerrarModalCobro()">Cancelar</button>
         </div>
     </div>
 </div>
+
+<div id="ticket-impresion"></div>
 
 <script src="app.js"></script>
 
