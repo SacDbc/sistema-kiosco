@@ -14,7 +14,7 @@ body {
 header { 
     background-color: #007bff; 
     color: white; 
-    padding: 15px 20px; 
+    padding: 12px 15px; 
     display: flex; 
     justify-content: space-between; 
     align-items: center; 
@@ -24,24 +24,27 @@ header {
 }
 
 header h1 {
-    font-size: 20px;
+    font-size: 18px;
+    margin: 0;
+    white-space: nowrap;
 }
 
 .nav-tabs { 
     display: flex; 
-    gap: 10px; 
+    gap: 8px; 
 }
 
 .tab-btn { 
     background: rgba(255,255,255,0.2); 
     color: white; 
     border: none; 
-    padding: 8px 14px; 
+    padding: 8px 12px; 
     border-radius: 5px; 
     cursor: pointer; 
     font-weight: bold; 
     transition: 0.2s; 
-    font-size: 13px;
+    font-size: 12px;
+    white-space: nowrap;
 }
 
 .tab-btn:hover, .tab-btn.activo { 
@@ -55,7 +58,7 @@ header h1 {
     padding: 0 10px; 
 }
 
-/* Módulo de Ventas (Escritorio) */
+/* Módulo de Ventas */
 .grid-ventas { 
     display: grid; 
     grid-template-columns: 1.8fr 1.2fr; 
@@ -69,10 +72,11 @@ header h1 {
     box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
 }
 
-/* Buscador Desplegable estilo POS */
+/* Buscador Desplegable */
 .contenedor-buscador { 
     position: relative; 
     margin-bottom: 20px; 
+    width: 100%;
 }
 
 .buscador { 
@@ -80,7 +84,7 @@ header h1 {
     padding: 12px; 
     border: 2px solid #007bff; 
     border-radius: 6px; 
-    font-size: 16px; 
+    font-size: 15px; 
     outline: none; 
 }
 
@@ -147,7 +151,7 @@ header h1 {
     border-color: #007bff; 
 }
 
-/* Carrito / Ticket de Venta */
+/* Carrito / Ticket */
 .tabla-carrito { 
     width: 100%; 
     border-collapse: collapse; 
@@ -197,11 +201,17 @@ header h1 {
 }
 
 /* Tablas e Inventario */
+.tabla-contenedor {
+    width: 100%;
+    overflow-x: auto; /* Permite scroll horizontal fluido en la tabla */
+    -webkit-overflow-scrolling: touch;
+}
+
 .tabla-stock { 
     width: 100%; 
     border-collapse: collapse; 
     margin-top: 10px; 
-    min-width: 500px; /* Para permitir scroll en movil */
+    min-width: 550px; 
 }
 
 .tabla-stock th, .tabla-stock td { 
@@ -234,7 +244,7 @@ header h1 {
     display: block; 
 }
 
-/* Modales Adaptables */
+/* Modales */
 .modal { 
     display: none; 
     position: fixed; 
@@ -262,7 +272,7 @@ header h1 {
     overflow-y: auto;
 }
 
-.modal-contenido input { 
+.modal-contenido input, .modal-contenido select { 
     padding: 10px; 
     border: 1px solid #ccc; 
     border-radius: 5px; 
@@ -358,17 +368,18 @@ header h1 {
 }
 
 /* ===================================================
-   📱 REGLAS RESPONSIVE PARA CELULARES (Max Width 768px)
+   📱 ADAPTACIÓN PARA CELULARES (Max Width 768px)
    =================================================== */
 @media (max-width: 768px) {
     header {
-        justify-content: center;
+        flex-direction: column;
+        align-items: stretch;
         text-align: center;
     }
 
     .nav-tabs {
         width: 100%;
-        justify-content: center;
+        justify-content: space-between;
     }
 
     .tab-btn {
@@ -376,12 +387,7 @@ header h1 {
         text-align: center;
     }
 
-    /* Convertimos Punto de Venta a 1 sola columna vertical */
     .grid-ventas { 
         grid-template-columns: 1fr; 
-    }
-
-    .modulo-stock {
-        overflow-x: auto; /* Permite scroll horizontal fluido en la tabla */
     }
 }
