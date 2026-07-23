@@ -23,13 +23,11 @@ function cambiarPestaña(tab) {
     }
 }
 
-// Cargar Inicial
 async function cargarTodo() {
     await cargarCategorias();
     await cargarProductos();
 }
 
-// Cargar Categorías desde Supabase
 async function cargarCategorias() {
     const { data, error } = await db.from('categorias').select('*').order('nombre', { ascending: true });
     if (error) return console.error(error);
@@ -39,7 +37,6 @@ async function cargarCategorias() {
 }
 
 function poblarSelectoresCategorias(lista) {
-    // 1. Selector en formulario de producto
     const selectProd = document.getElementById('p-categoria-select');
     selectProd.innerHTML = '';
     
@@ -50,7 +47,6 @@ function poblarSelectoresCategorias(lista) {
         selectProd.appendChild(opt);
     });
 
-    // 2. Selector en filtro de aumento masivo
     const selectAumento = document.getElementById('aumento-categoria');
     selectAumento.innerHTML = '<option value="">Todas las categorías</option>';
     
@@ -62,7 +58,6 @@ function poblarSelectoresCategorias(lista) {
     });
 }
 
-// Cargar Productos
 async function cargarProductos() {
     const { data, error } = await db.from('productos').select('*').order('id', { ascending: true });
     if (error) return console.error(error);
@@ -364,7 +359,6 @@ function cerrarModal() {
 async function guardarProducto() {
     const id = document.getElementById('p-id').value;
     const nombre = document.getElementById('p-nombre').value.trim();
-    // Si no selecciona categoría, cae por defecto en "General"
     const categoria = document.getElementById('p-categoria-select').value || 'General';
     const precio = Number(document.getElementById('p-precio').value);
     const stock = Number(document.getElementById('p-stock').value);
@@ -462,10 +456,11 @@ async function borrarCategoria(id, nombre) {
     }
 }
 
-/* AUMENTO MASIVO */
+/* AUMENTO MASIVO CON REDONDEO INTELIGENTE A MÚLTIPLOS DE $100 */
 async function aplicarAumentoMasivo() {
     const categoriaSel = document.getElementById('aumento-categoria').value;
     const porcentaje = Number(document.getElementById('aumento-porcentaje').value);
+    const redondear = document.getElementById('chk-redondear').checked;
 
     if (!porcentaje || porcentaje <= 0) return alert("Ingresá un porcentaje de aumento válido.");
 
@@ -479,7 +474,15 @@ async function aplicarAumentoMasivo() {
     if (!confirm(mensaje)) return;
 
     for (const prod of aActualizar) {
-        const nuevoPrecio = Math.round(prod.precio * (1 + (porcentaje / 100)));
+        let nuevoPrecio = prod.precio * (1 + (porcentaje / 100));
+
+        if (redondear) {
+            // Redondea hacia arriba al múltiplo de 100 más cercano (Ej: $2120 ➔ $2200)
+            nuevoPrecio = Math.ceil(nuevoPrecio / 100) * 100;
+        } else {
+            nuevoPrecio = Math.round(nuevoPrecio);
+        }
+
         await db.from('productos').update({ precio: nuevoPrecio }).eq('id', prod.id);
     }
 
@@ -488,5 +491,98 @@ async function aplicarAumentoMasivo() {
     await cargarProductos();
 }
 
-// Iniciar
+/* IMPORTACIÓN DESDE ARCHIVOS CSV / EXCEL */
+function abrirModalImportar() {
+    document.getElementById('modal-importar').style.display = 'flex';
+}
+
+function cerrarModalImportar() {
+    document.getElementById('modal-importar').style.display = 'none';
+    document.getElementById('archivo-csv').value = '';
+}
+
+function descargarPlantillaCSV() {
+    const contenidoCSV = "nombre,categoria,precio,stock,codigo_barras\nCoca Cola 500ml,Bebidas,1500,20,779123456\nAlfajor Fantoche,Golosinas,600,50,779987654\nMarlboro Red 20,Cigarrillos,3800,15,779112233";
+    const blob = new Blob([contenidoCSV], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "plantilla_productos_kiosco.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+async function procesarArchivoCSV() {
+    const input = document.getElementById('archivo-csv');
+    if (!input.files || input.files.length === 0) {
+        return alert("Por favor seleccioná un archivo CSV.");
+    }
+
+    const archivo = input.files[0];
+    const lector = new FileReader();
+
+    const btn = document.getElementById('btn-procesar-importacion');
+    btn.disabled = true;
+    btn.innerText = "Cargando en Supabase...";
+
+    lector.onload = async function(e) {
+        try {
+            const texto = e.target.result;
+            const lineas = texto.split('\n');
+            const nuevosProductos = [];
+
+            // Empezamos desde i=1 para saltearnos la cabecera (nombre, categoria, etc)
+            for (let i = 1; i < lineas.length; i++) {
+                const linea = lineas[i].trim();
+                if (!linea) continue;
+
+                const columnas = linea.split(',');
+                if (columnas.length >= 3) {
+                    const nombre = columnas[0]?.trim();
+                    const categoria = columnas[1]?.trim() || 'General';
+                    const precio = Number(columnas[2]?.trim());
+                    const stock = Number(columnas[3]?.trim()) || 0;
+                    const codigo = columnas[4]?.trim() || null;
+
+                    if (nombre && !isNaN(precio)) {
+                        nuevosProductos.push({
+                            nombre,
+                            categoria,
+                            precio,
+                            stock,
+                            codigo_barras: codigo
+                        });
+                    }
+                }
+            }
+
+            if (nuevosProductos.length === 0) {
+                alert("No se encontraron productos válidos en el archivo.");
+            } else {
+                // Inserción masiva en Supabase en 1 sola consulta
+                const { error } = await db.from('productos').insert(nuevosProductos);
+
+                if (error) {
+                    console.error('Error en importación:', error);
+                    alert("Ocurrió un error al cargar algunos productos.");
+                } else {
+                    alert(`¡Se importaron ${nuevosProductos.length} productos con éxito!`);
+                    cerrarModalImportar();
+                    await cargarProductos();
+                }
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Error al leer el archivo. Verificá que tenga el formato CSV adecuado.");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "🚀 Cargar Productos";
+        }
+    };
+
+    lector.readAsText(archivo);
+}
+
+// Iniciar app
 cargarTodo();
