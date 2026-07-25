@@ -1411,6 +1411,7 @@ async function procesarArchivoCSV() {
         try {
             const lineas = e.target.result.split('\n');
             const nuevosProductos = [];
+            const categoriasSet = new Set(); // Para extraer categorías únicas del CSV
 
             for (let i = 1; i < lineas.length; i++) {
                 const linea = lineas[i].trim();
@@ -1425,6 +1426,8 @@ async function procesarArchivoCSV() {
                     const codigo = columnas[4]?.replace(/"/g, '').trim() || null;
 
                     if (nombre && !isNaN(precio)) {
+                        categoriasSet.add(categoria); // Guardamos la categoría para registrarla
+
                         nuevosProductos.push({
                             user_id: usuarioActual.id,
                             comercio_id: comercioActualId,
@@ -1446,12 +1449,24 @@ async function procesarArchivoCSV() {
                 return;
             }
 
+            // 1. Primero registramos/aseguramos las categorías únicas en la tabla 'categorias'
+            for (const catNombre of categoriasSet) {
+                await db.from('categorias').upsert([{ 
+                    user_id: usuarioActual ? usuarioActual.id : null, 
+                    comercio_id: comercioActualId, 
+                    nombre: catNombre 
+                }], { 
+                    onConflict: 'comercio_id, nombre' 
+                });
+            }
+
+            // 2. Luego insertamos los productos
             const { error } = await db.from('productos').insert(nuevosProductos);
 
             if (error) {
-                alert("⚠️ Error al guardar: " + error.message);
+                alert("⚠️ Error al guardar productos: " + error.message);
             } else {
-                alert(`¡Se importaron ${nuevosProductos.length} productos con éxito!`);
+                alert(`¡Se importaron ${nuevosProductos.length} productos y sus categorías con éxito!`);
                 cerrarModalImportar();
                 await cargarCategorias();
                 await cargarProductos();
