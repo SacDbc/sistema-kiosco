@@ -595,7 +595,7 @@ async function cambiarEstadoComercio(idComercio, nuevoEstado) {
 async function cargarCategorias() {
     if (!comercioActualId) return;
 
-    // 1. Traer categorías oficiales guardadas en la BD de forma segura
+    // 1. Traer categorías oficiales guardadas en la BD de forma limpia
     let { data, error } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
 
     if (error) {
@@ -604,39 +604,17 @@ async function cargarCategorias() {
 
     categoriasGlobales = data || [];
 
-    // 2. Extraer categorías desde los productos y sincronizarlas de forma segura con upsert
-    if (productosGlobales && productosGlobales.length > 0) {
-        const catsEnProductos = [...new Set(productosGlobales.map(p => p.categoria || 'General'))];
-        
-        for (const catNombre of catsEnProductos) {
-            if (!catNombre) continue;
-            
-            const existeLocal = categoriasGlobales.find(c => c.nombre.toLowerCase() === catNombre.toLowerCase());
-            
-            if (!existeLocal) {
-                // Usamos upsert con onConflict para evitar errores 409 si ya está registrada
-                const { error: errUpsert } = await db.from('categorias').upsert([{ 
-                    user_id: usuarioActual ? usuarioActual.id : null, 
-                    comercio_id: comercioActualId, 
-                    nombre: catNombre 
-                }], { onConflict: 'comercio_id,nombre' });
-                
-                if (!errUpsert) {
-                    categoriasGlobales.push({ nombre: catNombre });
-                }
-            }
-        }
-    }
-
-    // 3. Si la lista sigue vacía, aseguramos al menos "General"
+    // 2. Si está totalmente vacío, aseguramos al menos "General"
     if (categoriasGlobales.length === 0) {
+        await db.from('categorias').insert([{ 
+            user_id: usuarioActual ? usuarioActual.id : null, 
+            comercio_id: comercioActualId, 
+            nombre: 'General' 
+        }]);
         categoriasGlobales = [{ nombre: 'General' }];
     }
 
-    // Ordenar alfabéticamente
-    categoriasGlobales.sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-    // 4. Poblar todos los selects y la lista visual del modal
+    // 3. Poblar todos los selects y la lista visual del modal
     poblarSelectoresCategorias(categoriasGlobales);
     renderizarListaCategoriasModal();
 }
@@ -686,27 +664,9 @@ async function cargarProductos() {
 
     productosGlobales = data || [];
     
-    // Auto-registrar en la tabla categorías aquellas que vienen dentro de los productos importados pero no están creadas
-    const catsEnProductos = [...new Set(productosGlobales.map(p => p.categoria || 'General'))];
-    let huboNuevas = false;
-    for (const catNombre of catsEnProductos) {
-        const existe = categoriasGlobales.find(c => c.nombre.toLowerCase() === catNombre.toLowerCase());
-        if (!existe && catNombre) {
-            await db.from('categorias').insert([{ 
-                user_id: usuarioActual ? usuarioActual.id : null, 
-                comercio_id: comercioActualId, 
-                nombre: catNombre 
-            }]);
-            huboNuevas = true;
-        }
-    }
+    // Recargamos categorías para asegurarnos de que la interfaz esté sincronizada
+    await cargarCategorias();
 
-    if (huboNuevas) {
-        const { data: dataActualizada } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
-        categoriasGlobales = dataActualizada || categoriasGlobales;
-    }
-
-    poblarSelectoresCategorias(categoriasGlobales);
     renderizarFavoritos(productosGlobales);
     renderizarTablaStock(productosGlobales);
 }
