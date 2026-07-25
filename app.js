@@ -135,7 +135,7 @@ function toggleModoAuth(e) {
 
 async function manejarAuth(e) {
     e.preventDefault();
-    const email = document.getElementById('auth-email').value.trim();
+    const email = document.getElementById('auth-email').value.trim().toLowerCase();
     const password = document.getElementById('auth-password').value.trim();
     const nombreComercio = document.getElementById('auth-comercio').value.trim();
     const btn = document.getElementById('btn-auth-submit');
@@ -151,7 +151,17 @@ async function manejarAuth(e) {
             return;
         }
 
-        // 1. Crear el usuario en Auth
+        // 1. VALIDACIÓN DE LÍMITE: Verificar si el correo ya registró un comercio previo
+        const { data: perfilExistente } = await db.from('perfiles').select('id, email').eq('email', email).maybeSingle();
+
+        if (perfilExistente) {
+            alert("⚠️ Este correo ya tiene un comercio registrado en el sistema. Para habilitar una nueva sucursal o restablecer tu acceso, contactate con administración.");
+            btn.disabled = false;
+            btn.innerText = 'Registrar Comercio';
+            return;
+        }
+
+        // 2. Crear el usuario en Auth
         const { data: authData, error: authError } = await db.auth.signUp({ email, password });
         
         if (authError) {
@@ -164,7 +174,7 @@ async function manejarAuth(e) {
         if (authData && authData.user) {
             const userId = authData.user.id;
 
-            // 2. Crear inmediatamente el registro en la tabla 'comercios' como pendiente
+            // 3. Crear el Comercio con el nombre inicial para el Panel Admin
             const { data: comercioCreado, error: comError } = await db.from('comercios').insert([{
                 nombre_comercio: nombreComercio,
                 dueno_id: userId,
@@ -172,18 +182,21 @@ async function manejarAuth(e) {
             }]).select().single();
 
             if (!comError && comercioCreado) {
-                // 3. Crear el perfil asociado
+                // 4. Crear Perfil de usuario vinculándolo al comercio
                 await db.from('perfiles').insert([{
                     user_id: userId,
                     email: email,
                     rol: 'dueno',
                     comercio_id: comercioCreado.id
                 }]);
+
+                // 5. Configurar el nombre por defecto del Ticket en el almacenamiento del navegador del cliente
+                localStorage.setItem('cfg_nombre', nombreComercio);
             }
 
             alert("¡Registro enviado con éxito! El administrador habilitará tu cuenta en breve.");
             
-            // Cerrar la sesión del nuevo usuario recién registrado para que no quede logueado automáticamente
+            // Cerrar sesión para que quede a la espera de la aprobación del Super Admin
             await db.auth.signOut();
             location.reload();
         }
@@ -195,6 +208,7 @@ async function manejarAuth(e) {
     btn.disabled = false;
     btn.innerText = modoRegistro ? 'Registrar Comercio' : 'Ingresar';
 }
+
 async function cerrarSesion() {
     await db.auth.signOut();
     location.reload();
