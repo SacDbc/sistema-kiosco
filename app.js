@@ -1408,9 +1408,10 @@ async function procesarArchivoCSV() {
 
     lector.onload = async function(e) {
         try {
-            const lineas = e.target.result.split('\n');
+            const contenido = e.target.result;
+            const lineas = contenido.split(/\r\n|\n/); // Compatible con saltos de línea de Windows y Linux
             const nuevosProductos = [];
-            const categoriasSet = new Set(); // Conjunto para extraer categorías únicas del CSV
+            const categoriasSet = new Set();
 
             for (let i = 1; i < lineas.length; i++) {
                 const linea = lineas[i].trim();
@@ -1425,10 +1426,10 @@ async function procesarArchivoCSV() {
                     const codigo = columnas[4]?.replace(/"/g, '').trim() || null;
 
                     if (nombre && !isNaN(precio)) {
-                        categoriasSet.add(categoria); // Guardamos la categoría única
+                        categoriasSet.add(categoria);
 
                         nuevosProductos.push({
-                            user_id: usuarioActual.id,
+                            user_id: usuarioActual ? usuarioActual.id : null,
                             comercio_id: comercioActualId,
                             nombre: nombre,
                             categoria: categoria,
@@ -1448,12 +1449,13 @@ async function procesarArchivoCSV() {
                 return;
             }
 
-            // 1. Registrar o verificar cada categoría única en la tabla 'categorias'
+            // 1. Guardar categorías una por una de forma segura
             for (const catNombre of categoriasSet) {
+                // Verificamos si ya existe
                 const { data: existente } = await db.from('categorias')
                     .select('id')
                     .eq('comercio_id', comercioActualId)
-                    .ilike('nombre', catNombre)
+                    .eq('nombre', catNombre)
                     .maybeSingle();
 
                 if (!existente) {
@@ -1465,7 +1467,7 @@ async function procesarArchivoCSV() {
                 }
             }
 
-            // 2. Insertar los productos en la tabla 'productos'
+            // 2. Guardar los productos
             const { error } = await db.from('productos').insert(nuevosProductos);
 
             if (error) {
@@ -1473,8 +1475,13 @@ async function procesarArchivoCSV() {
             } else {
                 alert(`¡Se importaron ${nuevosProductos.length} productos y sus categorías con éxito!`);
                 cerrarModalImportar();
+                
+                // 3. Forzar la recarga completa de datos globales de la aplicación
                 await cargarCategorias();
                 await cargarProductos();
+                
+                // Si estás en la pantalla de stock, refrescar la tabla visual
+                renderizarTablaStock(productosGlobales);
             }
         } catch (err) {
             alert("Error al procesar el archivo CSV: " + err.message);
