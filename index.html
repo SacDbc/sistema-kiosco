@@ -9,7 +9,7 @@
 </head>
 <body>
 
-<!-- PANTALLA DE LOGIN -->
+<!-- PANTALLA DE LOGIN (DUEÑO / ADMIN) -->
 <div id="pantalla-login" style="display:flex; justify-content:center; align-items:center; min-height:100vh; background:#e9ecef;">
     <div style="background:white; padding:30px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.15); width:100%; max-width:380px;">
         <h2 style="text-align:center; color:#007bff; margin-bottom:5px;">🏪 KioscoEnLínea</h2>
@@ -54,6 +54,12 @@
         <div id="selector-soporte-admin" style="display:none; background:rgba(255,255,255,0.2); padding:5px 10px; border-radius:5px;">
             <small style="color:white; font-weight:bold;">🔍 Modo Soporte Cliente:</small>
             <select id="select-comercio-soporte" onchange="cambiarComercioSoporte()" style="padding:4px; border-radius:4px; border:none; outline:none;"></select>
+        </div>
+
+        <!-- Indicador y Cambio de Cajero Rápido -->
+        <div id="bloque-cajero-activo" style="display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.2); padding:6px 12px; border-radius:6px; color:white;">
+            <span>👤 Cajero: <strong id="nombre-cajero-activo">Dueño</strong></span>
+            <button onclick="abrirModalCambiarCajero()" style="background:#ffc107; color:#333; border:none; padding:4px 8px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px;">🔄 Cambiar</button>
         </div>
 
         <nav class="nav-tabs">
@@ -186,6 +192,7 @@
                         <thead>
                             <tr>
                                 <th>Fecha/Hora</th>
+                                <th>Cajero</th>
                                 <th>Medio de Pago</th>
                                 <th>Detalle de Productos</th>
                                 <th>Total Venta</th>
@@ -198,21 +205,21 @@
             </div>
         </section>
 
-        <!-- SECCIÓN GESTIÓN DE VENDEDORES (Para el Dueño del Kiosco) -->
+        <!-- SECCIÓN GESTIÓN DE VENDEDORES -->
         <section id="seccion-vendedores" class="seccion">
             <div class="modulo-stock">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                     <h2>👥 Gestión de Vendedores / Cajeros</h2>
-                    <button class="btn-crear" onclick="abrirModalVendedor()">➕ Crear Vendedor</button>
+                    <button class="btn-crear" onclick="abrirModalVendedor()">➕ Crear Vendedor con PIN</button>
                 </div>
-                <p style="color:#666; font-size:14px; margin-bottom:15px;">Creá usuarios para tus empleados. Ellos solo tendrán acceso al Punto de Venta para cobrar.</p>
+                <p style="color:#666; font-size:14px; margin-bottom:15px;">Creá a tus empleados asignándoles un nombre y un PIN rápido de 4 dígitos para que registren sus ventas.</p>
 
                 <div class="tabla-contenedor">
                     <table class="tabla-stock">
                         <thead>
                             <tr>
-                                <th>Email Vendedor</th>
-                                <th>Rol</th>
+                                <th>Nombre del Vendedor</th>
+                                <th>PIN de Acceso</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -222,7 +229,7 @@
             </div>
         </section>
 
-        <!-- SECCIÓN PANEL ADMIN (Exclusivo Super Admin) -->
+        <!-- SECCIÓN PANEL ADMIN -->
         <section id="seccion-admin" class="seccion">
             <div class="modulo-stock">
                 <h2>👑 Panel de Administración SaaS</h2>
@@ -247,14 +254,31 @@
 
     </div>
 
-    <!-- Modales -->
+    <!-- Modal Cambiar Cajero / PIN -->
+    <div id="modal-cambiar-cajero" class="modal no-print">
+        <div class="modal-contenido" style="max-width:350px;">
+            <h2 style="text-align:center;">🔄 Seleccionar Cajero</h2>
+            <label style="font-size:12px; font-weight:bold; color:#666;">VENDEDOR / CAJERO:</label>
+            <select id="select-vendedor-pin" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:15px; width:100%; margin-bottom:10px;"></select>
+            
+            <label style="font-size:12px; font-weight:bold; color:#666;">PIN DE ACCESO (4 dígitos):</label>
+            <input type="password" id="input-pin-cajero" maxlength="6" placeholder="****" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:18px; text-align:center; width:100%; letter-spacing:4px;">
+
+            <div class="modal-acciones" style="margin-top:15px;">
+                <button class="btn-guardar" onclick="confirmarCambioCajero()">Ingresar Cajero</button>
+                <button class="btn-cancelar" onclick="cerrarModalCambiarCajero()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Crear Vendedor con PIN -->
     <div id="modal-vendedor" class="modal no-print">
-        <div class="modal-contenido">
-            <h2>➕ Crear Usuario Vendedor</h2>
-            <input type="email" id="vend-email" placeholder="Correo del Vendedor">
-            <input type="password" id="vend-password" placeholder="Contraseña de Acceso">
+        <div class="modal-contenido" style="max-width:380px;">
+            <h2>➕ Nuevo Vendedor</h2>
+            <input type="text" id="vend-nombre" placeholder="Nombre y Apellido (Ej: Juan Perez)">
+            <input type="password" id="vend-pin" maxlength="6" placeholder="PIN Numérico (Ej: 1234)">
             <div class="modal-acciones">
-                <button class="btn-guardar" onclick="crearVendedor()">Crear Vendedor</button>
+                <button class="btn-guardar" onclick="guardarVendedorNuevo()">Guardar Vendedor</button>
                 <button class="btn-cancelar" onclick="cerrarModalVendedor()">Cancelar</button>
             </div>
         </div>
