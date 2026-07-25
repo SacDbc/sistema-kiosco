@@ -1509,7 +1509,11 @@ async function procesarArchivoCSV() {
 
 async function eliminarComercioAdmin(idComercio, nombreComercio) {
     if (confirm(`⚠️ ¿Estás seguro de eliminar por completo el comercio "${nombreComercio}" y todos sus datos asociados? Esta acción no se puede deshacer.`)) {
-        // Borramos el comercio de la tabla (las FK con cascade o eliminación directa)
+        
+        // 1. Opcional: Desvincular o eliminar el perfil asociado a este comercio primero
+        await db.from('perfiles').update({ comercio_id: null }).eq('comercio_id', idComercio);
+
+        // 2. Borramos el comercio de la tabla principal
         const { error } = await db.from('comercios').delete().eq('id', idComercio);
         
         if (error) {
