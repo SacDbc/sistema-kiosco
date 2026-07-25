@@ -2,6 +2,7 @@ const SUPABASE_URL = 'https://xsaqhiaiwgqfpghpxarl.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_85wjOI6fSpOsaH_Bw8Jn7Q_vP_n2JKJ';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+let usuarioActual = null;
 let productosGlobales = [];
 let categoriasGlobales = [];
 let ventasGlobales = [];
@@ -9,15 +10,65 @@ let carrito = [];
 let medioPagoSeleccionado = 'Efectivo';
 let totalVentaActual = 0;
 let mostrandoSoloBajoStock = false;
+let modoRegistro = false;
 
-// Configuración del Comercio guardada en LocalStorage
 let configComercio = {
     nombre: localStorage.getItem('cfg_nombre') || 'Kiosco En Línea',
     direccion: localStorage.getItem('cfg_direccion') || 'Atención al Cliente',
     formato: localStorage.getItem('cfg_formato') || '80mm'
 };
 
-// Navegación Pestañas
+// COMPROBACIÓN DE SESIÓN INICIAL
+db.auth.onAuthStateChange((event, session) => {
+    if (session) {
+        usuarioActual = session.user;
+        document.getElementById('pantalla-login').style.display = 'none';
+        document.getElementById('app-principal').style.display = 'block';
+        cargarTodo();
+    } else {
+        usuarioActual = null;
+        document.getElementById('pantalla-login').style.display = 'flex';
+        document.getElementById('app-principal').style.display = 'none';
+    }
+});
+
+function toggleModoAuth(e) {
+    e.preventDefault();
+    modoRegistro = !modoRegistro;
+    
+    document.getElementById('login-subtitulo').innerText = modoRegistro ? 'Creá tu cuenta gratis' : 'Ingresá a tu cuenta';
+    document.getElementById('btn-auth-submit').innerText = modoRegistro ? 'Registrarme' : 'Ingresar';
+    document.getElementById('text-toggle-auth').innerText = modoRegistro ? '¿Ya tenés cuenta?' : '¿No tenés cuenta?';
+    document.getElementById('link-toggle-auth').innerText = modoRegistro ? 'Ingresá acá' : 'Registrate acá';
+}
+
+async function manejarAuth(e) {
+    e.preventDefault();
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value.trim();
+    const btn = document.getElementById('btn-auth-submit');
+
+    btn.disabled = true;
+    btn.innerText = "Procesando...";
+
+    if (modoRegistro) {
+        const { error } = await db.auth.signUp({ email, password });
+        if (error) alert("Error al registrar: " + error.message);
+        else alert("¡Registro exitoso! Ya podés ingresar con tu cuenta.");
+    } else {
+        const { error } = await db.auth.signInWithPassword({ email, password });
+        if (error) alert("Credenciales incorrectas: " + error.message);
+    }
+
+    btn.disabled = false;
+    btn.innerText = modoRegistro ? 'Registrarme' : 'Ingresar';
+}
+
+async function cerrarSesion() {
+    await db.auth.signOut();
+    location.reload();
+}
+
 function cambiarPestaña(tab) {
     document.querySelectorAll('.seccion').forEach(s => s.classList.remove('activa'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('activo'));
@@ -42,7 +93,6 @@ async function cargarTodo() {
     await cargarProductos();
 }
 
-/* CONFIGURACIÓN DEL COMERCIO Y TICKET */
 function abrirModalConfig() {
     document.getElementById('cfg-nombre-comercio').value = configComercio.nombre;
     document.getElementById('cfg-direccion').value = configComercio.direccion;
@@ -77,8 +127,9 @@ function aplicarConfiguracionUI() {
     }
 }
 
+// CARGA FILTRADA POR USUARIO
 async function cargarCategorias() {
-    const { data, error } = await db.from('categorias').select('*').order('nombre', { ascending: true });
+    const { data, error } = await db.from('categorias').select('*').eq('user_id', usuarioActual.id).order('nombre', { ascending: true });
     if (error) return console.error(error);
 
     categoriasGlobales = data;
@@ -87,7 +138,7 @@ async function cargarCategorias() {
 
 function poblarSelectoresCategorias(lista) {
     const selectProd = document.getElementById('p-categoria-select');
-    selectProd.innerHTML = '';
+    selectProd.innerHTML = '<option value="General">General</option>';
     
     lista.forEach(cat => {
         const opt = document.createElement('option');
@@ -108,7 +159,7 @@ function poblarSelectoresCategorias(lista) {
 }
 
 async function cargarProductos() {
-    const { data, error } = await db.from('productos').select('*').order('id', { ascending: true });
+    const { data, error } = await db.from('productos').select('*').eq('user_id', usuarioActual.id).order('id', { ascending: true });
     if (error) return console.error(error);
 
     productosGlobales = data;
@@ -266,7 +317,7 @@ function actualizarCarritoUI() {
     document.getElementById('total-monto').innerText = totalVentaActual;
 }
 
-/* MEDIOS DE PAGO Y TICKET */
+/* COBRO Y GUARDADO VINCULADO AL USUARIO */
 function abrirModalCobro() {
     if (carrito.length === 0) return alert("El carrito está vacío.");
 
@@ -343,6 +394,7 @@ async function confirmarVentaFinal() {
         }
 
         const registroVenta = {
+            user_id: usuarioActual.id,
             monto_total: totalVentaActual,
             medio_pago: medioPagoSeleccionado,
             items: carrito.map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio }))
@@ -378,11 +430,8 @@ async function confirmarVentaFinal() {
     }
 }
 
-/* GENERACIÓN E IMPRESIÓN DEL TICKET DINÁMICO */
 function imprimirTicketHTML(datosVenta) {
     const divTicket = document.getElementById('ticket-impresion');
-    
-    // Asignamos la clase del formato configurado (formato-58mm, formato-80mm o formato-a4)
     divTicket.className = `formato-${configComercio.formato}`;
 
     let lineasItems = '';
@@ -426,12 +475,12 @@ function enviarTicketWhatsApp(telefono, items, total) {
     window.open(url, '_blank');
 }
 
-/* HISTORIAL Y CIERRE DE CAJA */
+/* HISTORIAL FILTRADO POR USUARIO */
 async function cargarHistorialVentas() {
     const tbody = document.getElementById('tabla-body-historial');
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando historial...</td></tr>';
 
-    const { data, error } = await db.from('ventas').select('*').order('id', { ascending: false }).limit(50);
+    const { data, error } = await db.from('ventas').select('*').eq('user_id', usuarioActual.id).order('id', { ascending: false }).limit(50);
     if (error) return;
 
     ventasGlobales = data;
@@ -498,7 +547,7 @@ function actualizarTotalesCaja(total, efectivo, qr, transf) {
     document.getElementById('caja-transf').innerText = `$${transf}`;
 }
 
-/* TABLA DE STOCK Y ALERTAS */
+/* STOCK Y PRODUCTOS DE CADA USUARIO */
 function renderizarTablaStock(lista) {
     const tbody = document.getElementById('tabla-body-stock');
     tbody.innerHTML = '';
@@ -637,6 +686,7 @@ async function guardarProducto() {
     if (!nombre || !precio) return alert("Completá nombre y precio.");
 
     const datos = {
+        user_id: usuarioActual.id,
         nombre,
         categoria,
         precio,
@@ -705,7 +755,7 @@ async function crearCategoria() {
     const nombre = document.getElementById('nueva-cat-nombre').value.trim();
     if (!nombre) return alert("Ingresá un nombre de categoría.");
 
-    const { error } = await db.from('categorias').insert([{ nombre }]);
+    const { error } = await db.from('categorias').insert([{ user_id: usuarioActual.id, nombre }]);
 
     if (error) {
         alert("La categoría ya existe o surgió un error.");
@@ -807,7 +857,7 @@ async function procesarArchivoCSV() {
                     const codigo = columnas[4]?.trim() || null;
 
                     if (nombre && !isNaN(precio)) {
-                        nuevosProductos.push({ nombre, categoria, precio, stock, codigo_barras: codigo, stock_minimo: 3 });
+                        nuevosProductos.push({ user_id: usuarioActual.id, nombre, categoria, precio, stock, codigo_barras: codigo, stock_minimo: 3 });
                     }
                 }
             }
@@ -827,6 +877,3 @@ async function procesarArchivoCSV() {
 
     lector.readAsText(archivo);
 }
-
-// Iniciar app
-cargarTodo();
