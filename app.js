@@ -592,12 +592,11 @@ async function cambiarEstadoComercio(idComercio, nuevoEstado) {
     cargarTablaAdmin();
 }
 
-/* CARGA Y RENDERIZADO ROBUSTO DE CATEGORÍAS */
 async function cargarCategorias() {
     if (!comercioActualId) return;
 
-    // 1. Traer categorías de la base de datos
-    const { data, error } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
+    // 1. Traer categorías oficiales guardadas en la BD
+    let { data, error } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
 
     if (error) {
         console.error("Error al cargar categorías:", error);
@@ -605,19 +604,37 @@ async function cargarCategorias() {
 
     categoriasGlobales = data || [];
 
-    // 2. Si no hay ninguna, creamos "General" por defecto en la BD
+    // 2. Seguridad extra: Si hay productos cargados con categorías que no están en la tabla, las insertamos automáticamente
+    if (productosGlobales && productosGlobales.length > 0) {
+        const catsEnProductos = [...new Set(productosGlobales.map(p => p.categoria || 'General'))];
+        for (const catNombre of catsEnProductos) {
+            const existe = categoriasGlobales.find(c => c.nombre.toLowerCase() === catNombre.toLowerCase());
+            if (!existe && catNombre) {
+                await db.from('categorias').insert([{ 
+                    user_id: usuarioActual ? usuarioActual.id : null, 
+                    comercio_id: comercioActualId, 
+                    nombre: catNombre 
+                }]);
+            }
+        }
+        // Volvemos a consultar para tener la lista completa y actualizada
+        const { data: dataActualizada } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
+        categoriasGlobales = dataActualizada || categoriasGlobales;
+    }
+
+    // 3. Si aún así está totalmente vacío, aseguramos al menos "General"
     if (categoriasGlobales.length === 0) {
         await db.from('categorias').insert([{ 
             user_id: usuarioActual ? usuarioActual.id : null, 
             comercio_id: comercioActualId, 
             nombre: 'General' 
         }]);
-        const { data: resNueva } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
-        categoriasGlobales = resNueva || [];
+        categoriasGlobales = [{ nombre: 'General' }];
     }
 
-    // 3. Poblar todos los selects visuales de la aplicación inmediatamente
+    // 4. Poblar todos los selects y la lista visual del modal de categorías
     poblarSelectoresCategorias(categoriasGlobales);
+    renderizarListaCategoriasModal();
 }
 
 function poblarSelectoresCategorias(lista) {
