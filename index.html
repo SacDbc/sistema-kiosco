@@ -9,278 +9,279 @@
 </head>
 <body>
 
-<header class="no-print">
-    <h1 id="header-titulo-local">🏪 KioscoEnLínea</h1>
-    <nav class="nav-tabs">
-        <button id="btn-tab-ventas" class="tab-btn activo" onclick="cambiarPestaña('ventas')">🛒 Punto de Venta</button>
-        <button id="btn-tab-stock" class="tab-btn" onclick="cambiarPestaña('stock')">📦 Control de Stock</button>
-        <button id="btn-tab-historial" class="tab-btn" onclick="cambiarPestaña('historial')">📊 Historial / Caja</button>
-        <button class="tab-btn" onclick="abrirModalConfig()" style="background:rgba(255,255,255,0.3);">⚙️ Config</button>
-    </nav>
-</header>
+<div id="pantalla-login" style="display:flex; justify-content:center; align-items:center; min-height:100vh; background:#e9ecef;">
+    <div style="background:white; padding:30px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.15); width:100%; max-width:380px;">
+        <h2 style="text-align:center; color:#007bff; margin-bottom:5px;">🏪 KioscoEnLínea</h2>
+        <p style="text-align:center; color:#666; font-size:14px; margin-bottom:20px;" id="login-subtitulo">Ingresá a tu cuenta</p>
 
-<div class="container no-print">
+        <form onsubmit="manejarAuth(event)" style="display:flex; flex-direction:column; gap:12px;">
+            <input type="email" id="auth-email" placeholder="Correo Electrónico" required style="padding:12px; border:1px solid #ccc; border-radius:6px; font-size:15px;">
+            <input type="password" id="auth-password" placeholder="Contraseña" required style="padding:12px; border:1px solid #ccc; border-radius:6px; font-size:15px;">
 
-    <section id="seccion-ventas" class="seccion activa">
-        <div class="grid-ventas">
-            <main class="modulo-ventas">
-                <div class="contenedor-buscador">
-                    <input type="text" id="buscador" class="buscador" placeholder="⚡ Pistoleá código o busca (ej: 5*codigo)..." autofocus onkeypress="manejarEnter(event)" oninput="buscarProductosLive()">
-                    <div id="desplegable-resultados" class="desplegable-resultados"></div>
-                </div>
+            <button type="submit" id="btn-auth-submit" style="background:#007bff; color:white; border:none; padding:12px; font-size:16px; font-weight:bold; border-radius:6px; cursor:pointer;">Ingresar</button>
+        </form>
 
-                <div class="titulo-favoritos">⭐ Productos Rápidos</div>
-                <div id="contenedor-favoritos" class="grid-favoritos"></div>
-            </main>
-
-            <aside class="modulo-carrito">
-                <h2>Detalle de Venta</h2>
-                <table class="tabla-carrito">
-                    <thead>
-                        <tr>
-                            <th>Cant</th>
-                            <th>Prod</th>
-                            <th>Subtotal</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="carrito-items-body"></tbody>
-                </table>
-
-                <div class="total-box">
-                    Total: $<span id="total-monto">0</span>
-                </div>
-                <button id="btn-cobrar" class="btn-cobrar" onclick="abrirModalCobro()">💵 COBRAR</button>
-            </aside>
+        <div style="text-align:center; margin-top:15px; font-size:13px;">
+            <span id="text-toggle-auth">¿No tenés cuenta?</span> 
+            <a href="#" onclick="toggleModoAuth(event)" id="link-toggle-auth" style="color:#007bff; font-weight:bold; text-decoration:none;">Registrate acá</a>
         </div>
-    </section>
+    </div>
+</div>
 
-    <section id="seccion-stock" class="seccion">
-        <div class="modulo-stock">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                <h2>Inventario de Productos</h2>
-                <div style="display:flex; gap:5px; flex-wrap:wrap;">
-                    <button onclick="filtrarStockBajo()" style="background:#ffc107; color:#333; border:none; padding:10px 12px; border-radius:5px; font-weight:bold; cursor:pointer;">⚠️ Ver Bajo Stock / Reponer</button>
-                    <button onclick="exportarProductosCSV()" style="background:#28a745; color:white; border:none; padding:10px 12px; border-radius:5px; font-weight:bold; cursor:pointer;">📤 Exportar Excel</button>
-                    <button onclick="abrirModalImportar()" style="background:#17a2b8; color:white; border:none; padding:10px 12px; border-radius:5px; font-weight:bold; cursor:pointer;">📥 Importar</button>
-                    <button onclick="abrirModalCategorias()" style="background:#6c757d; color:white; border:none; padding:10px 12px; border-radius:5px; font-weight:bold; cursor:pointer;">🏷️ Categorías</button>
-                    <button class="btn-crear" onclick="abrirModalCrear()">➕ Nuevo Producto</button>
+<div id="app-principal" style="display:none;">
+
+    <header class="no-print">
+        <h1 id="header-titulo-local">🏪 KioscoEnLínea</h1>
+        <nav class="nav-tabs">
+            <button id="btn-tab-ventas" class="tab-btn activo" onclick="cambiarPestaña('ventas')">🛒 Punto de Venta</button>
+            <button id="btn-tab-stock" class="tab-btn" onclick="cambiarPestaña('stock')">📦 Control de Stock</button>
+            <button id="btn-tab-historial" class="tab-btn" onclick="cambiarPestaña('historial')">📊 Historial / Caja</button>
+            <button class="tab-btn" onclick="abrirModalConfig()" style="background:rgba(255,255,255,0.3);">⚙️ Config</button>
+            <button class="tab-btn" onclick="cerrarSesion()" style="background:#dc3545;">🚪 Salir</button>
+        </nav>
+    </header>
+
+    <div class="container no-print">
+
+        <section id="seccion-ventas" class="seccion activa">
+            <div class="grid-ventas">
+                <main class="modulo-ventas">
+                    <div class="contenedor-buscador">
+                        <input type="text" id="buscador" class="buscador" placeholder="⚡ Pistoleá código o busca (ej: 5*codigo)..." autofocus onkeypress="manejarEnter(event)" oninput="buscarProductosLive()">
+                        <div id="desplegable-resultados" class="desplegable-resultados"></div>
+                    </div>
+
+                    <div class="titulo-favoritos">⭐ Productos Rápidos</div>
+                    <div id="contenedor-favoritos" class="grid-favoritos"></div>
+                </main>
+
+                <aside class="modulo-carrito">
+                    <h2>Detalle de Venta</h2>
+                    <table class="tabla-carrito">
+                        <thead>
+                            <tr>
+                                <th>Cant</th>
+                                <th>Prod</th>
+                                <th>Subtotal</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="carrito-items-body"></tbody>
+                    </table>
+
+                    <div class="total-box">
+                        Total: $<span id="total-monto">0</span>
+                    </div>
+                    <button id="btn-cobrar" class="btn-cobrar" onclick="abrirModalCobro()">💵 COBRAR</button>
+                </aside>
+            </div>
+        </section>
+
+        <section id="seccion-stock" class="seccion">
+            <div class="modulo-stock">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                    <h2>Inventario de Productos</h2>
+                    <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                        <button onclick="filtrarStockBajo()" style="background:#ffc107; color:#333; border:none; padding:10px 12px; border-radius:5px; font-weight:bold; cursor:pointer;">⚠️ Ver Bajo Stock / Reponer</button>
+                        <button onclick="exportarProductosCSV()" style="background:#28a745; color:white; border:none; padding:10px 12px; border-radius:5px; font-weight:bold; cursor:pointer;">📤 Exportar Excel</button>
+                        <button onclick="abrirModalImportar()" style="background:#17a2b8; color:white; border:none; padding:10px 12px; border-radius:5px; font-weight:bold; cursor:pointer;">📥 Importar</button>
+                        <button onclick="abrirModalCategorias()" style="background:#6c757d; color:white; border:none; padding:10px 12px; border-radius:5px; font-weight:bold; cursor:pointer;">🏷️ Categorías</button>
+                        <button class="btn-crear" onclick="abrirModalCrear()">➕ Nuevo Producto</button>
+                    </div>
+                </div>
+
+                <div class="panel-aumento-masivo" style="background:#e7f1ff; border:1px solid #b6d4fe; padding:15px; border-radius:6px; margin-bottom:15px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <strong>📈 Aumento Masivo:</strong>
+                    <select id="aumento-categoria" style="padding:8px; border-radius:4px; border:1px solid #ccc;">
+                        <option value="">Todas las categorías</option>
+                    </select>
+                    <input type="number" id="aumento-porcentaje" placeholder="% Aumento (Ej: 15)" style="padding:8px; width:140px; border-radius:4px; border:1px solid #ccc;">
+                    
+                    <label style="font-size:13px; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                        <input type="checkbox" id="chk-redondear" checked> Redondear a $100 arriba (Ej: $2160 ➔ $2200)
+                    </label>
+
+                    <button onclick="aplicarAumentoMasivo()" style="background:#007bff; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⚡ Aplicar Aumento</button>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <input type="text" id="buscador-stock" oninput="filtrarTablaStock()" placeholder="🔍 Buscar en inventario por nombre, categoría o código de barras..." style="width:100%; padding:10px 14px; border:1px solid #007bff; border-radius:6px; font-size:14px; outline:none;">
+                </div>
+
+                <div class="tabla-contenedor">
+                    <table class="tabla-stock">
+                        <thead>
+                            <tr>
+                                <th>Categoría</th>
+                                <th>Barcode</th>
+                                <th>Producto</th>
+                                <th>Precio</th>
+                                <th>Stock</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-body-stock"></tbody>
+                    </table>
                 </div>
             </div>
+        </section>
 
-            <div class="panel-aumento-masivo" style="background:#e7f1ff; border:1px solid #b6d4fe; padding:15px; border-radius:6px; margin-bottom:15px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                <strong>📈 Aumento Masivo:</strong>
-                <select id="aumento-categoria" style="padding:8px; border-radius:4px; border:1px solid #ccc;">
-                    <option value="">Todas las categorías</option>
-                </select>
-                <input type="number" id="aumento-porcentaje" placeholder="% Aumento (Ej: 15)" style="padding:8px; width:140px; border-radius:4px; border:1px solid #ccc;">
+        <section id="seccion-historial" class="seccion">
+            <div class="modulo-stock">
+                <h2>📊 Cierre de Caja e Historial de Ventas</h2>
                 
-                <label style="font-size:13px; cursor:pointer; display:flex; align-items:center; gap:4px;">
-                    <input type="checkbox" id="chk-redondear" checked> Redondear a $100 arriba (Ej: $2160 ➔ $2200)
-                </label>
-
-                <button onclick="aplicarAumentoMasivo()" style="background:#007bff; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⚡ Aplicar Aumento</button>
-            </div>
-
-            <div style="margin-bottom: 15px;">
-                <input type="text" id="buscador-stock" oninput="filtrarTablaStock()" placeholder="🔍 Buscar en inventario por nombre, categoría o código de barras..." style="width:100%; padding:10px 14px; border:1px solid #007bff; border-radius:6px; font-size:14px; outline:none;">
-            </div>
-
-            <div class="tabla-contenedor">
-                <table class="tabla-stock">
-                    <thead>
-                        <tr>
-                            <th>Categoría</th>
-                            <th>Barcode</th>
-                            <th>Producto</th>
-                            <th>Precio</th>
-                            <th>Stock</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabla-body-stock"></tbody>
-                </table>
-            </div>
-        </div>
-    </section>
-
-    <section id="seccion-historial" class="seccion">
-        <div class="modulo-stock">
-            <h2>📊 Cierre de Caja e Historial de Ventas</h2>
-            
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px; margin:20px 0;">
-                <div style="background:#28a745; color:white; padding:15px; border-radius:8px; text-align:center;">
-                    <small>TOTAL FACTURADO</small>
-                    <div style="font-size:26px; font-weight:bold;" id="caja-total">$0</div>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px; margin:20px 0;">
+                    <div style="background:#28a745; color:white; padding:15px; border-radius:8px; text-align:center;">
+                        <small>TOTAL FACTURADO</small>
+                        <div style="font-size:26px; font-weight:bold;" id="caja-total">$0</div>
+                    </div>
+                    <div style="background:#e9ecef; border:1px solid #ccc; padding:15px; border-radius:8px; text-align:center;">
+                        <small>💵 EFECTIVO</small>
+                        <div style="font-size:22px; font-weight:bold; color:#28a745;" id="caja-efectivo">$0</div>
+                    </div>
+                    <div style="background:#e9ecef; border:1px solid #ccc; padding:15px; border-radius:8px; text-align:center;">
+                        <small>📲 MERCADO PAGO / QR</small>
+                        <div style="font-size:22px; font-weight:bold; color:#007bff;" id="caja-qr">$0</div>
+                    </div>
+                    <div style="background:#e9ecef; border:1px solid #ccc; padding:15px; border-radius:8px; text-align:center;">
+                        <small>🏦 TRANSFERENCIAS</small>
+                        <div style="font-size:22px; font-weight:bold; color:#17a2b8;" id="caja-transf">$0</div>
+                    </div>
                 </div>
-                <div style="background:#e9ecef; border:1px solid #ccc; padding:15px; border-radius:8px; text-align:center;">
-                    <small>💵 EFECTIVO</small>
-                    <div style="font-size:22px; font-weight:bold; color:#28a745;" id="caja-efectivo">$0</div>
-                </div>
-                <div style="background:#e9ecef; border:1px solid #ccc; padding:15px; border-radius:8px; text-align:center;">
-                    <small>📲 MERCADO PAGO / QR</small>
-                    <div style="font-size:22px; font-weight:bold; color:#007bff;" id="caja-qr">$0</div>
-                </div>
-                <div style="background:#e9ecef; border:1px solid #ccc; padding:15px; border-radius:8px; text-align:center;">
-                    <small>🏦 TRANSFERENCIAS</small>
-                    <div style="font-size:22px; font-weight:bold; color:#17a2b8;" id="caja-transf">$0</div>
+
+                <h3>📜 Últimas Ventas Registradas</h3>
+                <div class="tabla-contenedor" style="margin-top:10px;">
+                    <table class="tabla-stock">
+                        <thead>
+                            <tr>
+                                <th>Fecha/Hora</th>
+                                <th>Medio de Pago</th>
+                                <th>Detalle de Productos</th>
+                                <th>Total Venta</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-body-historial"></tbody>
+                    </table>
                 </div>
             </div>
+        </section>
 
-            <h3>📜 Últimas Ventas Registradas</h3>
-            <div class="tabla-contenedor" style="margin-top:10px;">
-                <table class="tabla-stock">
-                    <thead>
-                        <tr>
-                            <th>Fecha/Hora</th>
-                            <th>Medio de Pago</th>
-                            <th>Detalle de Productos</th>
-                            <th>Total Venta</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabla-body-historial"></tbody>
-                </table>
+    </div>
+
+    <div id="modal-config" class="modal no-print">
+        <div class="modal-contenido">
+            <h2>⚙️ Configuración del Ticket</h2>
+            <label style="font-size:12px; font-weight:bold; color:#666;">NOMBRE DEL COMERCIO:</label>
+            <input type="text" id="cfg-nombre-comercio" placeholder="Ej: Kiosco Sergio">
+            <label style="font-size:12px; font-weight:bold; color:#666;">DIRECCIÓN O LEYENDA:</label>
+            <input type="text" id="cfg-direccion" placeholder="Ej: Av. San Martín 1234">
+            <label style="font-size:12px; font-weight:bold; color:#666;">TIPO DE IMPRESORA:</label>
+            <select id="cfg-formato-impresora" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px; outline:none;">
+                <option value="80mm">Tiquetera Térmica 80mm (Estándar)</option>
+                <option value="58mm">Tiquetera Térmica 58mm (Chica / Portátil)</option>
+                <option value="a4">Hoja A4 / PDF Completo</option>
+            </select>
+            <div class="modal-acciones">
+                <button class="btn-guardar" onclick="guardarConfiguracion()">Guardar Cambios</button>
+                <button class="btn-cancelar" onclick="cerrarModalConfig()">Cancelar</button>
             </div>
         </div>
-    </section>
-
-</div>
-
-<div id="modal-config" class="modal no-print">
-    <div class="modal-contenido">
-        <h2>⚙️ Configuración del Ticket</h2>
-        
-        <label style="font-size:12px; font-weight:bold; color:#666;">NOMBRE DEL COMERCIO (Encabezado del Ticket):</label>
-        <input type="text" id="cfg-nombre-comercio" placeholder="Ej: Kiosco Sergio">
-
-        <label style="font-size:12px; font-weight:bold; color:#666;">DIRECCIÓN O LEYENDA (Opcional):</label>
-        <input type="text" id="cfg-direccion" placeholder="Ej: Av. San Martín 1234">
-
-        <label style="font-size:12px; font-weight:bold; color:#666;">TIPO DE IMPRESORA / FORMATO:</label>
-        <select id="cfg-formato-impresora" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px; outline:none;">
-            <option value="80mm">Tiquetera Térmica 80mm (Estándar)</option>
-            <option value="58mm">Tiquetera Térmica 58mm (Chica / Portátil)</option>
-            <option value="a4">Hoja A4 / PDF Completo</option>
-        </select>
-
-        <div class="modal-acciones">
-            <button class="btn-guardar" onclick="guardarConfiguracion()">Guardar Cambios</button>
-            <button class="btn-cancelar" onclick="cerrarModalConfig()">Cancelar</button>
-        </div>
     </div>
-</div>
 
-<div id="modal-producto" class="modal no-print">
-    <div class="modal-contenido">
-        <h2 id="modal-titulo-prod">Nuevo Producto</h2>
-        <input type="hidden" id="p-id">
-        <input type="text" id="p-nombre" placeholder="Nombre (Ej: Marlboro Red 20)">
-        
-        <label style="font-size:12px; font-weight:bold; color:#666;">CATEGORÍA:</label>
-        <select id="p-categoria-select" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px; outline:none;"></select>
-
-        <input type="number" id="p-precio" placeholder="Precio ($)">
-        
-        <div style="display:flex; gap:10px;">
-            <input type="number" id="p-stock" placeholder="Stock Actual" style="flex:1;">
-            <input type="number" id="p-stock-minimo" placeholder="Stock Mínimo (Alerta)" value="3" style="flex:1;">
-        </div>
-
-        <input type="text" id="p-codigo" placeholder="Código de Barras (Opcional)">
-        
-        <div class="modal-acciones">
-            <button class="btn-guardar" onclick="guardarProducto()">Guardar</button>
-            <button class="btn-cancelar" onclick="cerrarModal()">Cancelar</button>
-        </div>
-    </div>
-</div>
-
-<div id="modal-importar" class="modal no-print">
-    <div class="modal-contenido" style="max-width:500px;">
-        <h2>📥 Importar Productos desde Excel</h2>
-        
-        <div style="background:#f8f9fa; border:1px solid #eee; padding:12px; border-radius:6px; font-size:13px; line-height:1.5;">
-            <strong>📋 Formato del archivo Excel/CSV:</strong>
-            <p style="margin-top:5px;">El archivo debe guardarse como <strong>.CSV (Delimitado por comas)</strong> y contener exactamente estas cabeceras en la primera fila:</p>
-            <code style="background:#e9ecef; display:block; padding:8px; margin:8px 0; border-radius:4px; font-weight:bold;">nombre, categoria, precio, stock, codigo_barras</code>
-        </div>
-
-        <div style="margin-top:10px;">
-            <button onclick="descargarPlantillaCSV()" style="background:#6c757d; color:white; border:none; padding:8px 12px; border-radius:4px; font-size:12px; cursor:pointer; font-weight:bold;">📄 Descargar Plantilla (.CSV)</button>
-        </div>
-
-        <div style="margin-top:15px;">
-            <label style="font-weight:bold; font-size:13px;">Seleccioná tu archivo CSV:</label>
-            <input type="file" id="archivo-csv" accept=".csv" style="margin-top:5px; width:100%;">
-        </div>
-
-        <div class="modal-acciones">
-            <button id="btn-procesar-importacion" class="btn-guardar" onclick="procesarArchivoCSV()">🚀 Cargar Productos</button>
-            <button class="btn-cancelar" onclick="cerrarModalImportar()">Cancelar</button>
-        </div>
-    </div>
-</div>
-
-<div id="modal-categorias" class="modal no-print">
-    <div class="modal-contenido">
-        <h2>Gestor de Categorías</h2>
-        
-        <div style="display:flex; gap:5px;">
-            <input type="text" id="nueva-cat-nombre" placeholder="Nueva Categoría (Ej: Galletitas)" style="flex:1;">
-            <button onclick="crearCategoria()" style="background:#28a745; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;">➕ Crear</button>
-        </div>
-
-        <ul id="lista-categorias-modal" style="list-style:none; margin-top:10px; max-height:200px; overflow-y:auto; border:1px solid #eee; border-radius:5px;"></ul>
-
-        <div class="modal-acciones">
-            <button class="btn-cancelar" onclick="cerrarModalCategorias()">Cerrar</button>
-        </div>
-    </div>
-</div>
-
-<div id="modal-cobro" class="modal no-print">
-    <div class="modal-contenido">
-        <h2>Cobrar Venta</h2>
-        <p style="font-size:18px;">Total a Pagar: <strong style="color:#28a745;">$<span id="modal-total-pagar">0</span></strong></p>
-
-        <label style="font-size:13px; font-weight:bold; color:#666;">SELECCIONÁ MEDIO DE PAGO:</label>
-        <div class="medios-pago">
-            <button id="btn-pago-efectivo" class="btn-pago seleccionado" onclick="seleccionarMedioPago('Efectivo')">💵 Efectivo</button>
-            <button id="btn-pago-qr" class="btn-pago" onclick="seleccionarMedioPago('QR')">📲 QR MP</button>
-            <button id="btn-pago-transf" class="btn-pago" onclick="seleccionarMedioPago('Transferencia')">🏦 Transf.</button>
-        </div>
-
-        <div id="bloque-efectivo">
-            <label style="font-size:13px; font-weight:bold; color:#666;">PAGA CON ($):</label>
-            <input type="number" id="monto-recibido" placeholder="Ej: 5000" oninput="calcularVuelto()">
-            
-            <div class="billetes-rapidos">
-                <button class="btn-billete" onclick="setMontoRecibido(2000)">$2.000</button>
-                <button class="btn-billete" onclick="setMontoRecibido(5000)">$5.000</button>
-                <button class="btn-billete" onclick="setMontoRecibido(10000)">$10.000</button>
-                <button class="btn-billete" onclick="setMontoRecibido(20000)">$20.000</button>
+    <div id="modal-producto" class="modal no-print">
+        <div class="modal-contenido">
+            <h2 id="modal-titulo-prod">Nuevo Producto</h2>
+            <input type="hidden" id="p-id">
+            <input type="text" id="p-nombre" placeholder="Nombre (Ej: Marlboro Red 20)">
+            <label style="font-size:12px; font-weight:bold; color:#666;">CATEGORÍA:</label>
+            <select id="p-categoria-select" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px; outline:none;"></select>
+            <input type="number" id="p-precio" placeholder="Precio ($)">
+            <div style="display:flex; gap:10px;">
+                <input type="number" id="p-stock" placeholder="Stock Actual" style="flex:1;">
+                <input type="number" id="p-stock-minimo" placeholder="Stock Mínimo" value="3" style="flex:1;">
             </div>
-
-            <div class="box-vuelto">
-                <small style="color:#2e7d32; font-weight:bold;">VUELTO A ENTREGAR:</small>
-                <div class="monto-vuelto">$<span id="monto-vuelto-text">0</span></div>
+            <input type="text" id="p-codigo" placeholder="Código de Barras (Opcional)">
+            <div class="modal-acciones">
+                <button class="btn-guardar" onclick="guardarProducto()">Guardar</button>
+                <button class="btn-cancelar" onclick="cerrarModal()">Cancelar</button>
             </div>
         </div>
+    </div>
 
-        <div style="margin-top:10px; border-top:1px solid #eee; padding-top:10px;">
-            <label style="font-size:12px; font-weight:bold; color:#666;">TELÉFONO CLIENTE (Opcional para WhatsApp):</label>
-            <input type="tel" id="tel-cliente" placeholder="Ej: 5492611234567" style="width:100%; margin-top:4px;">
-        </div>
-
-        <div class="modal-acciones">
-            <button id="btn-confirmar-venta" class="btn-guardar" onclick="confirmarVentaFinal()">✔ COBRAR VENTA</button>
-            <button class="btn-cancelar" onclick="cerrarModalCobro()">Cancelar</button>
+    <div id="modal-importar" class="modal no-print">
+        <div class="modal-contenido" style="max-width:500px;">
+            <h2>📥 Importar Productos desde Excel</h2>
+            <div style="background:#f8f9fa; border:1px solid #eee; padding:12px; border-radius:6px; font-size:13px; line-height:1.5;">
+                <strong>📋 Formato del archivo CSV:</strong>
+                <code style="background:#e9ecef; display:block; padding:8px; margin:8px 0; border-radius:4px; font-weight:bold;">nombre, categoria, precio, stock, codigo_barras</code>
+            </div>
+            <div style="margin-top:10px;">
+                <button onclick="descargarPlantillaCSV()" style="background:#6c757d; color:white; border:none; padding:8px 12px; border-radius:4px; font-size:12px; cursor:pointer; font-weight:bold;">📄 Descargar Plantilla (.CSV)</button>
+            </div>
+            <div style="margin-top:15px;">
+                <label style="font-weight:bold; font-size:13px;">Seleccioná tu archivo CSV:</label>
+                <input type="file" id="archivo-csv" accept=".csv" style="margin-top:5px; width:100%;">
+            </div>
+            <div class="modal-acciones">
+                <button id="btn-procesar-importacion" class="btn-guardar" onclick="procesarArchivoCSV()">🚀 Cargar Productos</button>
+                <button class="btn-cancelar" onclick="cerrarModalImportar()">Cancelar</button>
+            </div>
         </div>
     </div>
-</div>
 
-<div id="ticket-impresion"></div>
+    <div id="modal-categorias" class="modal no-print">
+        <div class="modal-contenido">
+            <h2>Gestor de Categorías</h2>
+            <div style="display:flex; gap:5px;">
+                <input type="text" id="nueva-cat-nombre" placeholder="Nueva Categoría (Ej: Galletitas)" style="flex:1;">
+                <button onclick="crearCategoria()" style="background:#28a745; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;">➕ Crear</button>
+            </div>
+            <ul id="lista-categorias-modal" style="list-style:none; margin-top:10px; max-height:200px; overflow-y:auto; border:1px solid #eee; border-radius:5px;"></ul>
+            <div class="modal-acciones">
+                <button class="btn-cancelar" onclick="cerrarModalCategorias()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-cobro" class="modal no-print">
+        <div class="modal-contenido">
+            <h2>Cobrar Venta</h2>
+            <p style="font-size:18px;">Total a Pagar: <strong style="color:#28a745;">$<span id="modal-total-pagar">0</span></strong></p>
+            <label style="font-size:13px; font-weight:bold; color:#666;">SELECCIONÁ MEDIO DE PAGO:</label>
+            <div class="medios-pago">
+                <button id="btn-pago-efectivo" class="btn-pago seleccionado" onclick="seleccionarMedioPago('Efectivo')">💵 Efectivo</button>
+                <button id="btn-pago-qr" class="btn-pago" onclick="seleccionarMedioPago('QR')">📲 QR MP</button>
+                <button id="btn-pago-transf" class="btn-pago" onclick="seleccionarMedioPago('Transferencia')">🏦 Transf.</button>
+            </div>
+            <div id="bloque-efectivo">
+                <label style="font-size:13px; font-weight:bold; color:#666;">PAGA CON ($):</label>
+                <input type="number" id="monto-recibido" placeholder="Ej: 5000" oninput="calcularVuelto()">
+                <div class="billetes-rapidos">
+                    <button class="btn-billete" onclick="setMontoRecibido(2000)">$2.000</button>
+                    <button class="btn-billete" onclick="setMontoRecibido(5000)">$5.000</button>
+                    <button class="btn-billete" onclick="setMontoRecibido(10000)">$10.000</button>
+                    <button class="btn-billete" onclick="setMontoRecibido(20000)">$20.000</button>
+                </div>
+                <div class="box-vuelto">
+                    <small style="color:#2e7d32; font-weight:bold;">VUELTO A ENTREGAR:</small>
+                    <div class="monto-vuelto">$<span id="monto-vuelto-text">0</span></div>
+                </div>
+            </div>
+            <div style="margin-top:10px; border-top:1px solid #eee; padding-top:10px;">
+                <label style="font-size:12px; font-weight:bold; color:#666;">TELÉFONO CLIENTE (Opcional):</label>
+                <input type="tel" id="tel-cliente" placeholder="Ej: 5492611234567" style="width:100%; margin-top:4px;">
+            </div>
+            <div class="modal-acciones">
+                <button id="btn-confirmar-venta" class="btn-guardar" onclick="confirmarVentaFinal()">✔ COBRAR VENTA</button>
+                <button class="btn-cancelar" onclick="cerrarModalCobro()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="ticket-impresion"></div>
+
+</div>
 
 <script src="app.js"></script>
 
