@@ -4,11 +4,14 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let usuarioActual = null;
 let perfilUsuario = null;
-let comercioActualId = null; // ID del comercio asociado a los datos
+let comercioActualId = null;
+let cajeroActivoNombre = 'Dueño';
+
 let productosGlobales = [];
 let categoriasGlobales = [];
 let ventasGlobales = [];
 let comerciosGlobales = [];
+let vendedoresGlobales = [];
 let carrito = [];
 let medioPagoSeleccionado = 'Efectivo';
 let totalVentaActual = 0;
@@ -21,7 +24,7 @@ let configComercio = {
     formato: localStorage.getItem('cfg_formato') || '80mm'
 };
 
-// COMPROBACIÓN DE SESIÓN Y JERARQUÍA DE ROLES
+// COMPROBACIÓN DE SESIÓN
 db.auth.onAuthStateChange(async (event, session) => {
     if (session) {
         usuarioActual = session.user;
@@ -39,7 +42,6 @@ async function verificarOcrearPerfil(user) {
     let { data: perfil } = await db.from('perfiles').select('*').eq('user_id', user.id).single();
 
     if (!perfil) {
-        // Si no existe, crear perfil por defecto
         const { data: creado } = await db.from('perfiles').insert([{
             user_id: user.id,
             email: user.email,
@@ -50,13 +52,12 @@ async function verificarOcrearPerfil(user) {
 
     perfilUsuario = perfil;
 
-    // A) SI ES SUPER ADMIN (TÚ)
+    // A) SUPER ADMIN
     if (perfilUsuario.rol === 'super_admin') {
         document.getElementById('pantalla-login').style.display = 'none';
         document.getElementById('pantalla-bloqueo').style.display = 'none';
         document.getElementById('app-principal').style.display = 'block';
 
-        // Ocultar Punto de Venta para Super Admin
         document.getElementById('btn-tab-ventas').style.display = 'none';
         document.getElementById('btn-tab-vendedores').style.display = 'none';
         document.getElementById('btn-tab-admin').style.display = 'inline-block';
@@ -67,7 +68,7 @@ async function verificarOcrearPerfil(user) {
         return;
     }
 
-    // B) SI ES DUEÑO O VENDEDOR
+    // B) DUEÑO DE COMERCIO
     let comercio;
     if (perfilUsuario.comercio_id) {
         let { data: c } = await db.from('comercios').select('*').eq('id', perfilUsuario.comercio_id).single();
@@ -75,7 +76,6 @@ async function verificarOcrearPerfil(user) {
     }
 
     if (!comercio && perfilUsuario.rol === 'dueno') {
-        // Crear comercio inicial si no tenía
         const nombreLocal = localStorage.getItem('temp_nombre_comercio') || 'Mi Kiosco';
         const { data: cNuevo } = await db.from('comercios').insert([{
             nombre_comercio: nombreLocal,
@@ -101,26 +101,13 @@ async function verificarOcrearPerfil(user) {
     document.getElementById('pantalla-bloqueo').style.display = 'none';
     document.getElementById('app-principal').style.display = 'block';
 
-    // Ajustes según Rol
-    if (perfilUsuario.rol === 'vendedor') {
-        // Vendedor solo ve Punto de Venta
-        document.getElementById('btn-tab-ventas').style.display = 'inline-block';
-        document.getElementById('btn-tab-stock').style.display = 'none';
-        document.getElementById('btn-tab-historial').style.display = 'none';
-        document.getElementById('btn-tab-vendedores').style.display = 'none';
-        document.getElementById('btn-tab-admin').style.display = 'none';
-        document.getElementById('btn-tab-config').style.display = 'none';
-        cambiarPestaña('ventas');
-    } else {
-        // Dueño ve todo
-        document.getElementById('btn-tab-ventas').style.display = 'inline-block';
-        document.getElementById('btn-tab-stock').style.display = 'inline-block';
-        document.getElementById('btn-tab-historial').style.display = 'inline-block';
-        document.getElementById('btn-tab-vendedores').style.display = 'inline-block';
-        document.getElementById('btn-tab-admin').style.display = 'none';
-        cambiarPestaña('ventas');
-    }
+    document.getElementById('btn-tab-ventas').style.display = 'inline-block';
+    document.getElementById('btn-tab-stock').style.display = 'inline-block';
+    document.getElementById('btn-tab-historial').style.display = 'inline-block';
+    document.getElementById('btn-tab-vendedores').style.display = 'inline-block';
+    document.getElementById('btn-tab-admin').style.display = 'none';
 
+    actualizarNombreCajeroUI();
     cargarTodo();
 }
 
@@ -169,10 +156,40 @@ async function cerrarSesion() {
     location.reload();
 }
 
-/* MODAL Y GESTIÓN DE VENDEDORES (Para el Dueño) */
+/* GESTIÓN DE VENDEDORES Y CAMBIO DE CAJERO POR PIN */
+async function cargarVendedores() {
+    if (!comercioActualId) return;
+    const { data } = await db.from('vendedores').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
+    vendedoresGlobales = data || [];
+    renderizarTablaVendedores();
+}
+
+function renderizarTablaVendedores() {
+    const tbody = document.getElementById('tabla-body-vendedores');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    if (vendedoresGlobales.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#888;">No hay vendedores cargados.</td></tr>';
+        return;
+    }
+
+    vendedoresGlobales.forEach(v => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${v.nombre}</strong></td>
+            <td><code>****</code></td>
+            <td>
+                <button onclick="eliminarVendedor(${v.id})" style="background:#dc3545; color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-weight:bold;">🗑️ Eliminar</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
 function abrirModalVendedor() {
-    document.getElementById('vend-email').value = '';
-    document.getElementById('vend-password').value = '';
+    document.getElementById('vend-nombre').value = '';
+    document.getElementById('vend-pin').value = '';
     document.getElementById('modal-vendedor').style.display = 'flex';
 }
 
@@ -180,63 +197,82 @@ function cerrarModalVendedor() {
     document.getElementById('modal-vendedor').style.display = 'none';
 }
 
-async function crearVendedor() {
-    const email = document.getElementById('vend-email').value.trim();
-    const password = document.getElementById('vend-password').value.trim();
+async function guardarVendedorNuevo() {
+    const nombre = document.getElementById('vend-nombre').value.trim();
+    const pin = document.getElementById('vend-pin').value.trim();
 
-    if (!email || !password) return alert("Completá email y contraseña.");
+    if (!nombre || !pin) return alert("Completá el nombre y el PIN numérico.");
 
-    // Registro secundario
-    const { data: authVend, error } = await db.auth.signUp({ email, password });
-    if (error) return alert("Error al crear vendedor: " + error.message);
+    const { error } = await db.from('vendedores').insert([{
+        comercio_id: comercioActualId,
+        nombre,
+        pin
+    }]);
 
-    if (authVend.user) {
-        await db.from('perfiles').insert([{
-            user_id: authVend.user.id,
-            email: email,
-            rol: 'vendedor',
-            comercio_id: comercioActualId
-        }]);
-
-        alert("¡Vendedor creado con éxito!");
+    if (error) {
+        alert("Error al guardar vendedor.");
+    } else {
+        alert("¡Vendedor agregado con éxito!");
         cerrarModalVendedor();
-        cargarTablaVendedores();
+        await cargarVendedores();
     }
-}
-
-async function cargarTablaVendedores() {
-    const tbody = document.getElementById('tabla-body-vendedores');
-    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Cargando vendedores...</td></tr>';
-
-    const { data: vends } = await db.from('perfiles').select('*').eq('comercio_id', comercioActualId).eq('rol', 'vendedor');
-
-    tbody.innerHTML = '';
-    if (!vends || vends.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#888;">No tenés vendedores registrados.</td></tr>';
-        return;
-    }
-
-    vends.forEach(v => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><strong>${v.email}</strong></td>
-            <td><span style="background:#e9ecef; padding:3px 7px; border-radius:4px; font-size:12px;">Cajero / Vendedor</span></td>
-            <td>
-                <button onclick="eliminarVendedor(${v.id})" style="background:#dc3545; color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-weight:bold;">🗑️ Dar de Baja</button>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
 }
 
 async function eliminarVendedor(id) {
-    if (confirm("¿Dar de baja a este vendedor?")) {
-        await db.from('perfiles').delete().eq('id', id);
-        cargarTablaVendedores();
+    if (confirm("¿Eliminar a este vendedor?")) {
+        await db.from('vendedores').delete().eq('id', id);
+        await cargarVendedores();
     }
 }
 
-/* MODULO MODO SOPORTE SUPER ADMIN */
+function abrirModalCambiarCajero() {
+    const select = document.getElementById('select-vendedor-pin');
+    select.innerHTML = '<option value="Dueño">Dueño / Administrador</option>';
+
+    vendedoresGlobales.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.nombre;
+        opt.innerText = v.nombre;
+        select.appendChild(opt);
+    });
+
+    document.getElementById('input-pin-cajero').value = '';
+    document.getElementById('modal-cambiar-cajero').style.display = 'flex';
+    setTimeout(() => document.getElementById('input-pin-cajero').focus(), 100);
+}
+
+function cerrarModalCambiarCajero() {
+    document.getElementById('modal-cambiar-cajero').style.display = 'none';
+}
+
+function confirmarCambioCajero() {
+    const seleccionado = document.getElementById('select-vendedor-pin').value;
+    const pinIngresado = document.getElementById('input-pin-cajero').value.trim();
+
+    if (seleccionado === 'Dueño') {
+        cajeroActivoNombre = 'Dueño';
+        actualizarNombreCajeroUI();
+        cerrarModalCambiarCajero();
+        return;
+    }
+
+    const vend = vendedoresGlobales.find(v => v.nombre === seleccionado);
+    if (vend && vend.pin === pinIngresado) {
+        cajeroActivoNombre = vend.nombre;
+        actualizarNombreCajeroUI();
+        cerrarModalCambiarCajero();
+        alert(`¡Turno activado para: ${vend.nombre}!`);
+    } else {
+        alert("⚠️ PIN incorrecto.");
+    }
+}
+
+function actualizarNombreCajeroUI() {
+    const elem = document.getElementById('nombre-cajero-activo');
+    if (elem) elem.innerText = cajeroActivoNombre;
+}
+
+/* NAVEGACIÓN */
 async function cargarComerciosSoporte() {
     const select = document.getElementById('select-comercio-soporte');
     select.innerHTML = '';
@@ -285,7 +321,7 @@ function cambiarPestaña(tab) {
     } else if (tab === 'vendedores') {
         document.getElementById('seccion-vendedores').classList.add('activa');
         document.getElementById('btn-tab-vendedores').classList.add('activo');
-        cargarTablaVendedores();
+        cargarVendedores();
     } else if (tab === 'admin') {
         document.getElementById('seccion-admin').classList.add('activa');
         document.getElementById('btn-tab-admin').classList.add('activo');
@@ -295,6 +331,7 @@ function cambiarPestaña(tab) {
 
 async function cargarTodo() {
     aplicarConfiguracionUI();
+    await cargarVendedores();
     await cargarCategorias();
     await cargarProductos();
 }
@@ -373,7 +410,7 @@ async function cambiarEstadoComercio(idComercio, nuevoEstado) {
     cargarTablaAdmin();
 }
 
-/* CARGA FILTRADA POR COMERCIO ID */
+/* PRODUCTOS Y VENTAS CON SEGUIMIENTO DE VENDEDOR */
 async function cargarCategorias() {
     if (!comercioActualId) return;
     const { data } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
@@ -563,7 +600,6 @@ function actualizarCarritoUI() {
     document.getElementById('total-monto').innerText = totalVentaActual;
 }
 
-/* COBRO Y GUARDADO */
 function abrirModalCobro() {
     if (carrito.length === 0) return alert("El carrito está vacío.");
 
@@ -642,6 +678,7 @@ async function confirmarVentaFinal() {
         const registroVenta = {
             user_id: usuarioActual.id,
             comercio_id: comercioActualId,
+            vendedor_nombre: cajeroActivoNombre,
             monto_total: totalVentaActual,
             medio_pago: medioPagoSeleccionado,
             items: carrito.map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio }))
@@ -649,11 +686,12 @@ async function confirmarVentaFinal() {
 
         await db.from('ventas').insert([registroVenta]);
 
-        const opcion = confirm(`¡Venta cobrada con éxito!\n\n¿Deseás IMPRIMIR el ticket de compra?`);
+        const opcion = confirm(`¡Venta cobrada por ${cajeroActivoNombre} con éxito!\n\n¿Deseás IMPRIMIR el ticket de compra?`);
 
         if (opcion) {
             imprimirTicketHTML({
                 fecha: new Date().toLocaleString('es-AR'),
+                cajero: cajeroActivoNombre,
                 medio_pago: medioCopia,
                 items: itemsCopia,
                 total: totalCopia
@@ -696,6 +734,7 @@ function imprimirTicketHTML(datosVenta) {
         <div style="text-align:center; font-size:11px; margin-bottom:6px;">${configComercio.direccion}</div>
         <div style="text-align:center; margin-bottom:6px;">--------------------------------</div>
         <div>Fecha: ${datosVenta.fecha}</div>
+        <div>Cajero: ${datosVenta.cajero || 'Dueño'}</div>
         <div>Pago: ${datosVenta.medio_pago}</div>
         <div style="text-align:center;">--------------------------------</div>
         ${lineasItems}
@@ -722,10 +761,10 @@ function enviarTicketWhatsApp(telefono, items, total) {
     window.open(url, '_blank');
 }
 
-/* HISTORIAL */
+/* HISTORIAL CON CAJERO */
 async function cargarHistorialVentas() {
     const tbody = document.getElementById('tabla-body-historial');
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando historial...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Cargando historial...</td></tr>';
 
     if (!comercioActualId) return;
 
@@ -740,7 +779,7 @@ function renderizarHistorial(ventas) {
     tbody.innerHTML = '';
 
     if (ventas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#888;">No hay ventas registradas aún.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#888;">No hay ventas registradas aún.</td></tr>';
         actualizarTotalesCaja(0, 0, 0, 0);
         return;
     }
@@ -762,6 +801,7 @@ function renderizarHistorial(ventas) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><small style="color:#666;">${fechaHora}</small></td>
+            <td><span style="background:#e9ecef; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:12px;">${v.vendedor_nombre || 'Dueño'}</span></td>
             <td><strong>${v.medio_pago}</strong></td>
             <td><span style="font-size:13px; color:#333;">${detalleItems}</span></td>
             <td><strong style="color:#28a745;">$${monto}</strong></td>
@@ -782,6 +822,7 @@ function reimprimirTicketHistorial(idVenta) {
     const fechaObj = new Date(venta.created_at);
     imprimirTicketHTML({
         fecha: fechaObj.toLocaleString('es-AR'),
+        cajero: venta.vendedor_nombre || 'Dueño',
         medio_pago: venta.medio_pago,
         items: venta.items || [],
         total: venta.monto_total
