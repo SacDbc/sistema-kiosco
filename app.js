@@ -621,20 +621,23 @@ async function cargarCategorias() {
 }
 
 function poblarSelectoresCategorias(lista) {
+    // Asegurar que siempre haya al menos una categoría por defecto si la lista viene vacía
+    const categoriasValidas = (lista && lista.length > 0) ? lista : [{ nombre: 'General' }];
+
     // Select de Nuevo/Editar Producto
     const selectProd = document.getElementById('p-categoria-select');
     if (selectProd) {
         const valorActual = selectProd.value;
         selectProd.innerHTML = '';
-        lista.forEach(cat => {
+        
+        categoriasValidas.forEach(cat => {
             const opt = document.createElement('option');
             opt.value = cat.nombre;
             opt.innerText = cat.nombre;
             selectProd.appendChild(opt);
         });
-        if (lista.length === 0) {
-            selectProd.innerHTML = '<option value="General">General</option>';
-        } else if (valorActual) {
+
+        if (valorActual) {
             selectProd.value = valorActual;
         }
     }
@@ -644,12 +647,14 @@ function poblarSelectoresCategorias(lista) {
     if (selectAumento) {
         const valorActualAumento = selectAumento.value;
         selectAumento.innerHTML = '<option value="">Todas las categorías</option>';
-        lista.forEach(cat => {
+        
+        categoriasValidas.forEach(cat => {
             const opt = document.createElement('option');
             opt.value = cat.nombre;
             opt.innerText = cat.nombre;
             selectAumento.appendChild(opt);
         });
+
         if (valorActualAumento) selectAumento.value = valorActualAumento;
     }
 }
