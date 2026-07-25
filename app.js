@@ -151,27 +151,41 @@ async function manejarAuth(e) {
             return;
         }
 
-        const { data: perfilExistente } = await db.from('perfiles').select('id, email').eq('email', email).maybeSingle();
+        // 1. Verificar si el email ya existe en perfiles
+        const { data: perfilExistente } = await db.from('perfiles').select('id, email, comercio_id').eq('email', email).maybeSingle();
 
-        if (perfilExistente) {
-            alert("⚠️ Este correo ya tiene un comercio registrado. Contactate con administración para agregar sucursales.");
+        if (perfilExistente && perfilExistente.comercio_id) {
+            alert("⚠️ Este correo ya tiene un comercio registrado. Iniciá sesión con tu cuenta.");
             btn.disabled = false;
             btn.innerText = 'Registrar Comercio';
             return;
         }
 
+        // 2. Intentar registrar en Auth de Supabase
         const { data: authData, error: authError } = await db.auth.signUp({ email, password });
         
-        if (authError) {
+        let userId = authData?.user?.id;
+
+        // Si el usuario ya estaba creado en Auth pero no tenía comercio completo
+        if (authError && authError.message.includes("already registered")) {
+            // Hacemos un login rápido para obtener su ID
+            const { data: loginData, error: loginError } = await db.auth.signInWithPassword({ email, password });
+            if (loginError) {
+                alert("⚠️ Este correo ya está registrado. Ingresá tu contraseña correcta o contactate con administración.");
+                btn.disabled = false;
+                btn.innerText = 'Registrar Comercio';
+                return;
+            }
+            userId = loginData.user.id;
+        } else if (authError) {
             alert("Error al registrar: " + authError.message);
             btn.disabled = false;
             btn.innerText = 'Registrar Comercio';
             return;
         }
 
-        if (authData && authData.user) {
-            const userId = authData.user.id;
-
+        if (userId) {
+            // 3. Crear el comercio nuevo vinculado a este usuario
             const { data: comercioCreado, error: comError } = await db.from('comercios').insert([{
                 nombre_comercio: nombreComercio,
                 dueno_id: userId,
@@ -179,12 +193,13 @@ async function manejarAuth(e) {
             }]).select().single();
 
             if (!comError && comercioCreado) {
-                await db.from('perfiles').insert([{
+                // Actualizar o insertar el perfil asegurando que apunte al nuevo comercio
+                await db.from('perfiles').upsert([{
                     user_id: userId,
                     email: email,
                     rol: 'dueno',
                     comercio_id: comercioCreado.id
-                }]);
+                }], { onConflict: 'user_id' });
 
                 localStorage.setItem('cfg_nombre', nombreComercio);
             }
