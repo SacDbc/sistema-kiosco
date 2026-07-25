@@ -10,11 +10,12 @@
 <body>
 
 <header class="no-print">
-    <h1>🏪 KioscoEnLínea</h1>
+    <h1 id="header-titulo-local">🏪 KioscoEnLínea</h1>
     <nav class="nav-tabs">
         <button id="btn-tab-ventas" class="tab-btn activo" onclick="cambiarPestaña('ventas')">🛒 Punto de Venta</button>
         <button id="btn-tab-stock" class="tab-btn" onclick="cambiarPestaña('stock')">📦 Control de Stock</button>
         <button id="btn-tab-historial" class="tab-btn" onclick="cambiarPestaña('historial')">📊 Historial / Caja</button>
+        <button class="tab-btn" onclick="abrirModalConfig()" style="background:rgba(255,255,255,0.3);">⚙️ Config</button>
     </nav>
 </header>
 
@@ -144,6 +145,30 @@
         </div>
     </section>
 
+</div>
+
+<div id="modal-config" class="modal no-print">
+    <div class="modal-contenido">
+        <h2>⚙️ Configuración del Ticket</h2>
+        
+        <label style="font-size:12px; font-weight:bold; color:#666;">NOMBRE DEL COMERCIO (Encabezado del Ticket):</label>
+        <input type="text" id="cfg-nombre-comercio" placeholder="Ej: Kiosco Sergio">
+
+        <label style="font-size:12px; font-weight:bold; color:#666;">DIRECCIÓN O LEYENDA (Opcional):</label>
+        <input type="text" id="cfg-direccion" placeholder="Ej: Av. San Martín 1234">
+
+        <label style="font-size:12px; font-weight:bold; color:#666;">TIPO DE IMPRESORA / FORMATO:</label>
+        <select id="cfg-formato-impresora" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px; outline:none;">
+            <option value="80mm">Tiquetera Térmica 80mm (Estándar)</option>
+            <option value="58mm">Tiquetera Térmica 58mm (Chica / Portátil)</option>
+            <option value="a4">Hoja A4 / PDF Completo</option>
+        </select>
+
+        <div class="modal-acciones">
+            <button class="btn-guardar" onclick="guardarConfiguracion()">Guardar Cambios</button>
+            <button class="btn-cancelar" onclick="cerrarModalConfig()">Cancelar</button>
+        </div>
+    </div>
 </div>
 
 <div id="modal-producto" class="modal no-print">
