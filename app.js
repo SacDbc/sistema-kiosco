@@ -3,6 +3,7 @@ const SUPABASE_KEY = 'sb_publishable_85wjOI6fSpOsaH_Bw8Jn7Q_vP_n2JKJ';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let usuarioActual = null;
+let perfilUsuario = null;
 let productosGlobales = [];
 let categoriasGlobales = [];
 let ventasGlobales = [];
@@ -18,19 +19,60 @@ let configComercio = {
     formato: localStorage.getItem('cfg_formato') || '80mm'
 };
 
-// COMPROBACIÓN DE SESIÓN INICIAL
-db.auth.onAuthStateChange((event, session) => {
+// COMPROBACIÓN DE SESIÓN Y VERIFICACIÓN DE SUSCRIPCIÓN
+db.auth.onAuthStateChange(async (event, session) => {
     if (session) {
         usuarioActual = session.user;
-        document.getElementById('pantalla-login').style.display = 'none';
-        document.getElementById('app-principal').style.display = 'block';
-        cargarTodo();
+        await verificarOcrearPerfil(usuarioActual);
     } else {
         usuarioActual = null;
+        perfilUsuario = null;
         document.getElementById('pantalla-login').style.display = 'flex';
+        document.getElementById('pantalla-bloqueo').style.display = 'none';
         document.getElementById('app-principal').style.display = 'none';
     }
 });
+
+async function verificarOcrearPerfil(user) {
+    let { data: perfil, error } = await db.from('perfiles').select('*').eq('user_id', user.id).single();
+
+    if (!perfil) {
+        // Si recién se registra, creamos su perfil
+        const nuevoPerfil = {
+            user_id: user.id,
+            email: user.email,
+            nombre_comercio: 'Mi Kiosco',
+            es_admin: false,
+            estado_suscripcion: 'activo'
+        };
+        const { data: creado } = await db.from('perfiles').insert([nuevoPerfil]).select().single();
+        perfil = creado;
+    }
+
+    perfilUsuario = perfil;
+
+    // Verificar si la cuenta está activa
+    if (perfilUsuario.estado_suscripcion !== 'activo' && !perfilUsuario.es_admin) {
+        document.getElementById('pantalla-login').style.display = 'none';
+        document.getElementById('pantalla-bloqueo').style.display = 'flex';
+        document.getElementById('app-principal').style.display = 'none';
+        return;
+    }
+
+    // Si está activa, mostrar App
+    document.getElementById('pantalla-login').style.display = 'none';
+    document.getElementById('pantalla-bloqueo').style.display = 'none';
+    document.getElementById('app-principal').style.display = 'block';
+
+    // Mostrar Botón Admin si es Administrador del SaaS
+    if (perfilUsuario.es_admin) {
+        document.getElementById('btn-tab-admin').style.display = 'inline-block';
+    } else {
+        document.getElementById('btn-tab-admin').style.display = 'none';
+    }
+
+    cargarTodo();
+}
 
 function toggleModoAuth(e) {
     e.preventDefault();
@@ -84,6 +126,10 @@ function cambiarPestaña(tab) {
         document.getElementById('seccion-historial').classList.add('activa');
         document.getElementById('btn-tab-historial').classList.add('activo');
         cargarHistorialVentas();
+    } else if (tab === 'admin') {
+        document.getElementById('seccion-admin').classList.add('activa');
+        document.getElementById('btn-tab-admin').classList.add('activo');
+        cargarTablaAdmin();
     }
 }
 
@@ -127,7 +173,44 @@ function aplicarConfiguracionUI() {
     }
 }
 
-// CARGA FILTRADA POR USUARIO
+/* LÓGICA EXCLUSIVA DEL PANEL ADMIN (Dueño del SaaS) */
+async function cargarTablaAdmin() {
+    const tbody = document.getElementById('tabla-body-admin');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando clientes...</td></tr>';
+
+    const { data: perfiles, error } = await db.from('perfiles').select('*').order('id', { ascending: true });
+    if (error) return;
+
+    tbody.innerHTML = '';
+    perfiles.forEach(p => {
+        const esActivo = p.estado_suscripcion === 'activo';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${p.email}</strong></td>
+            <td>${p.nombre_comercio || 'Kiosco'}</td>
+            <td>
+                <span style="background:${esActivo ? '#d4edda' : '#f8d7da'}; color:${esActivo ? '#155724' : '#721c24'}; padding:3px 8px; border-radius:4px; font-weight:bold; font-size:12px;">
+                    ${esActivo ? '🟢 ACTIVO' : '🔴 INACTIVO/VENCIDO'}
+                </span>
+            </td>
+            <td><small style="color:#666;">${new Date(p.fecha_vencimiento).toLocaleDateString('es-AR')}</small></td>
+            <td>
+                <button onclick="cambiarEstadoCliente(${p.id}, '${esActivo ? 'vencido' : 'activo'}')" style="background:${esActivo ? '#dc3545' : '#28a745'}; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold;">
+                    ${esActivo ? '🚫 Suspender' : '⚡ Activar Acceso'}
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+async function cambiarEstadoCliente(idPerfil, nuevoEstado) {
+    await db.from('perfiles').update({ estado_suscripcion: nuevoEstado }).eq('id', idPerfil);
+    alert(`Estado del cliente actualizado a: ${nuevoEstado.toUpperCase()}`);
+    cargarTablaAdmin();
+}
+
+/* CARGA FILTRADA POR USUARIO */
 async function cargarCategorias() {
     const { data, error } = await db.from('categorias').select('*').eq('user_id', usuarioActual.id).order('nombre', { ascending: true });
     if (error) return console.error(error);
@@ -317,7 +400,7 @@ function actualizarCarritoUI() {
     document.getElementById('total-monto').innerText = totalVentaActual;
 }
 
-/* COBRO Y GUARDADO VINCULADO AL USUARIO */
+/* COBRO Y GUARDADO */
 function abrirModalCobro() {
     if (carrito.length === 0) return alert("El carrito está vacío.");
 
@@ -475,7 +558,7 @@ function enviarTicketWhatsApp(telefono, items, total) {
     window.open(url, '_blank');
 }
 
-/* HISTORIAL FILTRADO POR USUARIO */
+/* HISTORIAL */
 async function cargarHistorialVentas() {
     const tbody = document.getElementById('tabla-body-historial');
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando historial...</td></tr>';
@@ -547,7 +630,7 @@ function actualizarTotalesCaja(total, efectivo, qr, transf) {
     document.getElementById('caja-transf').innerText = `$${transf}`;
 }
 
-/* STOCK Y PRODUCTOS DE CADA USUARIO */
+/* STOCK Y PRODUCTOS */
 function renderizarTablaStock(lista) {
     const tbody = document.getElementById('tabla-body-stock');
     tbody.innerHTML = '';
