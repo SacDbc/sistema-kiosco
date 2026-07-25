@@ -10,6 +10,13 @@ let medioPagoSeleccionado = 'Efectivo';
 let totalVentaActual = 0;
 let mostrandoSoloBajoStock = false;
 
+// Configuración del Comercio guardada en LocalStorage
+let configComercio = {
+    nombre: localStorage.getItem('cfg_nombre') || 'Kiosco En Línea',
+    direccion: localStorage.getItem('cfg_direccion') || 'Atención al Cliente',
+    formato: localStorage.getItem('cfg_formato') || '80mm'
+};
+
 // Navegación Pestañas
 function cambiarPestaña(tab) {
     document.querySelectorAll('.seccion').forEach(s => s.classList.remove('activa'));
@@ -30,8 +37,44 @@ function cambiarPestaña(tab) {
 }
 
 async function cargarTodo() {
+    aplicarConfiguracionUI();
     await cargarCategorias();
     await cargarProductos();
+}
+
+/* CONFIGURACIÓN DEL COMERCIO Y TICKET */
+function abrirModalConfig() {
+    document.getElementById('cfg-nombre-comercio').value = configComercio.nombre;
+    document.getElementById('cfg-direccion').value = configComercio.direccion;
+    document.getElementById('cfg-formato-impresora').value = configComercio.formato;
+    document.getElementById('modal-config').style.display = 'flex';
+}
+
+function cerrarModalConfig() {
+    document.getElementById('modal-config').style.display = 'none';
+}
+
+function guardarConfiguracion() {
+    const nombre = document.getElementById('cfg-nombre-comercio').value.trim() || 'Kiosco En Línea';
+    const direccion = document.getElementById('cfg-direccion').value.trim() || 'Atención al Cliente';
+    const formato = document.getElementById('cfg-formato-impresora').value;
+
+    configComercio = { nombre, direccion, formato };
+
+    localStorage.setItem('cfg_nombre', nombre);
+    localStorage.setItem('cfg_direccion', direccion);
+    localStorage.setItem('cfg_formato', formato);
+
+    aplicarConfiguracionUI();
+    cerrarModalConfig();
+    alert("¡Configuración guardada correctamente!");
+}
+
+function aplicarConfiguracionUI() {
+    const headerTitulo = document.getElementById('header-titulo-local');
+    if (headerTitulo) {
+        headerTitulo.innerText = `🏪 ${configComercio.nombre}`;
+    }
 }
 
 async function cargarCategorias() {
@@ -275,7 +318,6 @@ function calcularVuelto() {
     }
 }
 
-// CONFIRMAR VENTA Y OFRECER IMPRESIÓN/WHATSAPP
 async function confirmarVentaFinal() {
     if (medioPagoSeleccionado === 'Efectivo') {
         const recibido = Number(document.getElementById('monto-recibido').value) || 0;
@@ -308,8 +350,7 @@ async function confirmarVentaFinal() {
 
         await db.from('ventas').insert([registroVenta]);
 
-        // Preguntar al cajero si quiere imprimir o mandar por WhatsApp
-        const opcion = confirm(`¡Venta cobrada con éxito!\n\n¿Deseás IMPRIMIR el ticket de compra?\n(Aceptá para Imprimir o Cancelá si solo querés continuar)`);
+        const opcion = confirm(`¡Venta cobrada con éxito!\n\n¿Deseás IMPRIMIR el ticket de compra?`);
 
         if (opcion) {
             imprimirTicketHTML({
@@ -320,7 +361,6 @@ async function confirmarVentaFinal() {
             });
         }
 
-        // Si ingresó número de WhatsApp, abre el enlace
         if (clienteTel) {
             enviarTicketWhatsApp(clienteTel, itemsCopia, totalCopia);
         }
@@ -338,46 +378,49 @@ async function confirmarVentaFinal() {
     }
 }
 
-/* LÓGICA DE IMPRESIÓN DE TICKET */
+/* GENERACIÓN E IMPRESIÓN DEL TICKET DINÁMICO */
 function imprimirTicketHTML(datosVenta) {
     const divTicket = document.getElementById('ticket-impresion');
     
+    // Asignamos la clase del formato configurado (formato-58mm, formato-80mm o formato-a4)
+    divTicket.className = `formato-${configComercio.formato}`;
+
     let lineasItems = '';
     datosVenta.items.forEach(item => {
         lineasItems += `
             <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
-                <span>${item.cantidad}x ${item.nombre.substring(0,18)}</span>
+                <span>${item.cantidad}x ${item.nombre.substring(0,20)}</span>
                 <span>$${item.precio * item.cantidad}</span>
             </div>
         `;
     });
 
     divTicket.innerHTML = `
-        <div style="text-align:center; font-weight:bold; font-size:14px;">🏪 KIOSCO EN LÍNEA</div>
-        <div style="text-align:center; margin-bottom:8px;">Comprobante de Compra</div>
-        <div>--------------------------------</div>
+        <div style="text-align:center; font-weight:bold; font-size:15px;">${configComercio.nombre.toUpperCase()}</div>
+        <div style="text-align:center; font-size:11px; margin-bottom:6px;">${configComercio.direccion}</div>
+        <div style="text-align:center; margin-bottom:6px;">--------------------------------</div>
         <div>Fecha: ${datosVenta.fecha}</div>
         <div>Pago: ${datosVenta.medio_pago}</div>
-        <div>--------------------------------</div>
+        <div style="text-align:center;">--------------------------------</div>
         ${lineasItems}
-        <div>--------------------------------</div>
-        <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:14px; margin-top:5px;">
+        <div style="text-align:center;">--------------------------------</div>
+        <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:15px; margin-top:5px;">
             <span>TOTAL:</span>
             <span>$${datosVenta.total}</span>
         </div>
-        <div style="text-align:center; margin-top:15px;">¡Gracias por su compra!</div>
+        <div style="text-align:center; margin-top:15px; font-size:11px;">¡Gracias por su compra!</div>
     `;
 
     window.print();
 }
 
-/* ENVIAR TICKET POR WHATSAPP */
 function enviarTicketWhatsApp(telefono, items, total) {
-    let mensaje = `*🏪 KIOSCO EN LÍNEA - Ticket de Compra*\n\n`;
+    let mensaje = `*${configComercio.nombre.toUpperCase()} - Ticket de Compra*\n`;
+    mensaje += `_${configComercio.direccion}_\n\n`;
     items.forEach(i => {
         mensaje += `• ${i.cantidad}x ${i.nombre} - $${i.precio * i.cantidad}\n`;
     });
-    mensaje += `\n*TOTAL PAGADO: $${total}*\n¡Gracias por tu compra!`;
+    mensaje += `\n*TOTAL PAGADO: $${total}*\n¡Muchas gracias por tu compra!`;
 
     const url = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`;
     window.open(url, '_blank');
