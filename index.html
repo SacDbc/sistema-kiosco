@@ -32,15 +32,39 @@
     </div>
 </div>
 
-<!-- PANTALLA DE SUSCRIPCIÓN VENCIDA -->
+<!-- PANTALLA DE SUSCRIPCIÓN VENCIDA / PENDIENTE -->
 <div id="pantalla-bloqueo" style="display:none; justify-content:center; align-items:center; min-height:100vh; background:#fff3cd; padding:20px;">
     <div style="background:white; padding:30px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1); width:100%; max-width:450px; text-align:center;">
-        <div style="font-size:50px;">⚠️</div>
-        <h2 style="color:#856404; margin-bottom:10px;">Suscripción Inactiva o Vencida</h2>
-        <p style="color:#666; line-height:1.5; margin-bottom:20px;">
-            Tu comercio no tiene una suscripción activa asignada. Para renovar tu acceso, contactate con el administrador.
+        <div style="font-size:50px;">⏳</div>
+        <h2 style="color:#856404; margin-bottom:10px;" id="titulo-bloqueo">Cuenta Pendiente de Aprobación</h2>
+        <p style="color:#666; line-height:1.5; margin-bottom:20px;" id="mensaje-bloqueo">
+            Tu registro fue recibido exitosamente. En breve el administrador habilitará tu cuenta para comenzar a utilizar el sistema.
         </p>
         <button onclick="cerrarSesion()" style="background:#dc3545; color:white; border:none; padding:10px 20px; border-radius:5px; font-weight:bold; cursor:pointer;">🚪 Salir</button>
+    </div>
+</div>
+
+<!-- PANTALLA SELECCIÓN DE CAJERO / APERTURA DE TURNO -->
+<div id="pantalla-apertura-turno" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#1e293b; z-index:9999; justify-content:center; align-items:center; padding:20px;">
+    <div style="background:white; padding:35px; border-radius:12px; width:100%; max-width:420px; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.3);">
+        <h2 style="color:#007bff; margin-bottom:5px;">👋 ¡Hola!</h2>
+        <p style="color:#666; font-size:14px; margin-bottom:20px;">¿Quién va a atender la caja en este turno?</p>
+
+        <div id="grid-cajeros-apertura" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:20px; max-height:220px; overflow-y:auto;"></div>
+
+        <div id="bloque-ingreso-pin-apertura" style="display:none; background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #ddd; margin-bottom:15px;">
+            <div style="font-weight:bold; color:#333; margin-bottom:8px;" id="label-cajero-seleccionado">Ingresá tu PIN</div>
+            <input type="password" id="input-pin-apertura" maxlength="6" placeholder="****" style="padding:10px; font-size:22px; text-align:center; width:120px; border:2px solid #007bff; border-radius:6px; outline:none; letter-spacing:5px;">
+            <div style="margin-top:10px; display:flex; gap:10px; justify-content:center;">
+                <button onclick="confirmarIngresoTurno()" style="background:#28a745; color:white; border:none; padding:10px 20px; border-radius:6px; font-weight:bold; cursor:pointer;">✔ Entrar a Caja</button>
+                <button onclick="cancelarSeleccionCajero()" style="background:#6c757d; color:white; border:none; padding:10px 15px; border-radius:6px; cursor:pointer;">Cancelar</button>
+            </div>
+        </div>
+
+        <div style="border-top:1px solid #eee; padding-top:15px; display:flex; justify-content:space-between; align-items:center;">
+            <small style="color:#888;">Ingreso Administrador:</small>
+            <button onclick="ingresarComoDuenoDirecto()" style="background:#17a2b8; color:white; border:none; padding:6px 12px; border-radius:4px; font-weight:bold; font-size:12px; cursor:pointer;">👑 Entrar como Dueño</button>
+        </div>
     </div>
 </div>
 
@@ -59,16 +83,16 @@
         <!-- Indicador y Cambio de Cajero Rápido -->
         <div id="bloque-cajero-activo" style="display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.2); padding:6px 12px; border-radius:6px; color:white;">
             <span>👤 Cajero: <strong id="nombre-cajero-activo">Dueño</strong></span>
-            <button onclick="abrirModalCambiarCajero()" style="background:#ffc107; color:#333; border:none; padding:4px 8px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px;">🔄 Cambiar</button>
+            <button onclick="solicitarAperturaTurno()" style="background:#ffc107; color:#333; border:none; padding:4px 8px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px;">🔄 Cambiar Turno</button>
         </div>
 
         <nav class="nav-tabs">
             <button id="btn-tab-ventas" class="tab-btn activo" onclick="cambiarPestaña('ventas')">🛒 Punto de Venta</button>
-            <button id="btn-tab-stock" class="tab-btn" onclick="cambiarPestaña('stock')">📦 Control de Stock</button>
-            <button id="btn-tab-historial" class="tab-btn" onclick="cambiarPestaña('historial')">📊 Historial / Caja</button>
-            <button id="btn-tab-vendedores" class="tab-btn" onclick="cambiarPestaña('vendedores')" style="display:none;">👥 Vendedores</button>
+            <button id="btn-tab-stock" class="tab-btn" onclick="intentarAccesoProtegido('stock')">📦 Control de Stock</button>
+            <button id="btn-tab-historial" class="tab-btn" onclick="intentarAccesoProtegido('historial')">📊 Historial / Caja</button>
+            <button id="btn-tab-vendedores" class="tab-btn" onclick="intentarAccesoProtegido('vendedores')" style="display:none;">👥 Vendedores</button>
             <button id="btn-tab-admin" class="tab-btn" onclick="cambiarPestaña('admin')" style="display:none; background:#ffc107; color:#333;">👑 Panel Admin</button>
-            <button id="btn-tab-config" class="tab-btn" onclick="abrirModalConfig()" style="background:rgba(255,255,255,0.3);">⚙️ Config</button>
+            <button id="btn-tab-config" class="tab-btn" onclick="intentarAccesoProtegido('config')" style="background:rgba(255,255,255,0.3);">⚙️ Config</button>
             <button class="tab-btn" onclick="cerrarSesion()" style="background:#dc3545;">🚪 Salir</button>
         </nav>
     </header>
@@ -212,7 +236,7 @@
                     <h2>👥 Gestión de Vendedores / Cajeros</h2>
                     <button class="btn-crear" onclick="abrirModalVendedor()">➕ Crear Vendedor con PIN</button>
                 </div>
-                <p style="color:#666; font-size:14px; margin-bottom:15px;">Creá a tus empleados asignándoles un nombre y un PIN rápido de 4 dígitos para que registren sus ventas.</p>
+                <p style="color:#666; font-size:14px; margin-bottom:15px;">Creá a tus empleados asignándoles un nombre y un PIN rápido para que inicien su turno.</p>
 
                 <div class="tabla-contenedor">
                     <table class="tabla-stock">
@@ -229,11 +253,11 @@
             </div>
         </section>
 
-        <!-- SECCIÓN PANEL ADMIN -->
+        <!-- SECCIÓN PANEL ADMIN (Exclusivo Super Admin) -->
         <section id="seccion-admin" class="seccion">
             <div class="modulo-stock">
                 <h2>👑 Panel de Administración SaaS</h2>
-                <p style="color:#666; font-size:14px; margin-bottom:15px;">Gestión de suscripciones y comercios clientes.</p>
+                <p style="color:#666; font-size:14px; margin-bottom:15px;">Aprobación de cuentas nuevas y gestión de suscripciones.</p>
 
                 <div class="tabla-contenedor">
                     <table class="tabla-stock">
@@ -242,7 +266,6 @@
                                 <th>Nombre Comercio</th>
                                 <th>Email Dueño</th>
                                 <th>Estado Suscripción</th>
-                                <th>Vencimiento</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -254,28 +277,11 @@
 
     </div>
 
-    <!-- Modal Cambiar Cajero / PIN -->
-    <div id="modal-cambiar-cajero" class="modal no-print">
-        <div class="modal-contenido" style="max-width:350px;">
-            <h2 style="text-align:center;">🔄 Seleccionar Cajero</h2>
-            <label style="font-size:12px; font-weight:bold; color:#666;">VENDEDOR / CAJERO:</label>
-            <select id="select-vendedor-pin" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:15px; width:100%; margin-bottom:10px;"></select>
-            
-            <label style="font-size:12px; font-weight:bold; color:#666;">PIN DE ACCESO (4 dígitos):</label>
-            <input type="password" id="input-pin-cajero" maxlength="6" placeholder="****" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:18px; text-align:center; width:100%; letter-spacing:4px;">
-
-            <div class="modal-acciones" style="margin-top:15px;">
-                <button class="btn-guardar" onclick="confirmarCambioCajero()">Ingresar Cajero</button>
-                <button class="btn-cancelar" onclick="cerrarModalCambiarCajero()">Cancelar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Crear Vendedor con PIN -->
+    <!-- Modales -->
     <div id="modal-vendedor" class="modal no-print">
         <div class="modal-contenido" style="max-width:380px;">
             <h2>➕ Nuevo Vendedor</h2>
-            <input type="text" id="vend-nombre" placeholder="Nombre y Apellido (Ej: Juan Perez)">
+            <input type="text" id="vend-nombre" placeholder="Nombre (Ej: Juan)">
             <input type="password" id="vend-pin" maxlength="6" placeholder="PIN Numérico (Ej: 1234)">
             <div class="modal-acciones">
                 <button class="btn-guardar" onclick="guardarVendedorNuevo()">Guardar Vendedor</button>
@@ -291,6 +297,8 @@
             <input type="text" id="cfg-nombre-comercio" placeholder="Ej: Kiosco Sergio">
             <label style="font-size:12px; font-weight:bold; color:#666;">DIRECCIÓN O LEYENDA:</label>
             <input type="text" id="cfg-direccion" placeholder="Ej: Av. San Martín 1234">
+            <label style="font-size:12px; font-weight:bold; color:#666;">PIN DE DUEÑO / ADMINISTRADOR:</label>
+            <input type="password" id="cfg-pin-dueno" placeholder="Ej: 0000" maxlength="6">
             <label style="font-size:12px; font-weight:bold; color:#666;">TIPO DE IMPRESORA:</label>
             <select id="cfg-formato-impresora" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px; outline:none;">
                 <option value="80mm">Tiquetera Térmica 80mm (Estándar)</option>
