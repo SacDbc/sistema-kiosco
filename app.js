@@ -604,26 +604,24 @@ async function cargarCategorias() {
 
     categoriasGlobales = data || [];
 
-    // 2. Extraer categorías desde los productos actuales y agregarlas solo si no existen en memoria
+    // 2. Extraer categorías desde los productos y sincronizarlas de forma segura con upsert
     if (productosGlobales && productosGlobales.length > 0) {
         const catsEnProductos = [...new Set(productosGlobales.map(p => p.categoria || 'General'))];
         
         for (const catNombre of catsEnProductos) {
             if (!catNombre) continue;
             
-            // Verificamos si ya existe en el array local (evitando duplicados y llamadas innecesarias)
             const existeLocal = categoriasGlobales.find(c => c.nombre.toLowerCase() === catNombre.toLowerCase());
             
             if (!existeLocal) {
-                // Insertamos en la BD de forma silenciosa
-                const { error: errInsert } = await db.from('categorias').insert([{ 
+                // Usamos upsert con onConflict para evitar errores 409 si ya está registrada
+                const { error: errUpsert } = await db.from('categorias').upsert([{ 
                     user_id: usuarioActual ? usuarioActual.id : null, 
                     comercio_id: comercioActualId, 
                     nombre: catNombre 
-                }]);
+                }], { onConflict: 'comercio_id,nombre' });
                 
-                // Si se insertó bien, la sumamos al array local
-                if (!errInsert) {
+                if (!errUpsert) {
                     categoriasGlobales.push({ nombre: catNombre });
                 }
             }
@@ -642,6 +640,7 @@ async function cargarCategorias() {
     poblarSelectoresCategorias(categoriasGlobales);
     renderizarListaCategoriasModal();
 }
+
 function poblarSelectoresCategorias(lista) {
     // Asegurar que siempre haya al menos una categoría por defecto si la lista viene vacía
     const categoriasValidas = (lista && lista.length > 0) ? lista : [{ nombre: 'General' }];
