@@ -1404,15 +1404,16 @@ async function procesarArchivoCSV() {
 
     const btn = document.getElementById('btn-procesar-importacion');
     btn.disabled = true;
-    btn.innerText = "Cargando...";
+    btn.innerText = "Analizando categorías...";
 
     lector.onload = async function(e) {
         try {
             const contenido = e.target.result;
-            const lineas = contenido.split(/\r\n|\n/); // Compatible con saltos de línea de Windows y Linux
-            const nuevosProductos = [];
+            const lineas = contenido.split(/\r\n|\n/);
+            const filasValidas = [];
             const categoriasSet = new Set();
 
+            // PASO 1: Leer el archivo y extraer filas y categorías únicas
             for (let i = 1; i < lineas.length; i++) {
                 const linea = lineas[i].trim();
                 if (!linea) continue;
@@ -1427,60 +1428,72 @@ async function procesarArchivoCSV() {
 
                     if (nombre && !isNaN(precio)) {
                         categoriasSet.add(categoria);
-
-                        nuevosProductos.push({
-                            user_id: usuarioActual ? usuarioActual.id : null,
-                            comercio_id: comercioActualId,
-                            nombre: nombre,
-                            categoria: categoria,
-                            precio: precio,
-                            stock: stock,
-                            stock_minimo: 3,
+                        filasValidas.push({
+                            nombre,
+                            categoria,
+                            precio,
+                            stock,
                             codigo_barras: codigo ? String(codigo) : null
                         });
                     }
                 }
             }
 
-            if (nuevosProductos.length === 0) {
+            if (filasValidas.length === 0) {
                 alert("⚠️ No se encontraron productos válidos en el archivo.");
                 btn.disabled = false;
                 btn.innerText = "🚀 Cargar Productos";
                 return;
             }
 
-            // 1. Guardar categorías una por una de forma segura
+            // PASO 2: Agregar las categorías descubiertas a la tabla correspondiente en Supabase
+            btn.innerText = "Registrando categorías...";
             for (const catNombre of categoriasSet) {
-                // Verificamos si ya existe
+                // Verificamos si ya existe para este comercio
                 const { data: existente } = await db.from('categorias')
                     .select('id')
                     .eq('comercio_id', comercioActualId)
                     .eq('nombre', catNombre)
                     .maybeSingle();
 
+                // Si no existe, la insertamos formalmente
                 if (!existente) {
-                    await db.from('categorias').insert([{ 
+                    const { error: errCat } = await db.from('categorias').insert([{ 
                         user_id: usuarioActual ? usuarioActual.id : null, 
                         comercio_id: comercioActualId, 
                         nombre: catNombre 
                     }]);
+
+                    if (errCat) {
+                        console.error(`No se pudo crear la categoría ${catNombre}:`, errCat.message);
+                    }
                 }
             }
 
-            // 2. Guardar los productos
-            const { error } = await db.from('productos').insert(nuevosProductos);
+            // PASO 3: Procesar internamente e insertar los productos vinculados
+            btn.innerText = "Cargando productos...";
+            const nuevosProductos = filasValidas.map(p => ({
+                user_id: usuarioActual.id,
+                comercio_id: comercioActualId,
+                nombre: p.nombre,
+                categoria: p.categoria,
+                precio: p.precio,
+                stock: p.stock,
+                stock_minimo: 3,
+                codigo_barras: p.codigo_barras
+            }));
 
-            if (error) {
-                alert("⚠️ Error al guardar productos: " + error.message);
+            const { error: errProd } = await db.from('productos').insert(nuevosProductos);
+
+            if (errProd) {
+                alert("⚠️ Error al guardar los productos: " + errProd.message);
             } else {
-                alert(`¡Se importaron ${nuevosProductos.length} productos y sus categorías con éxito!`);
+                alert(`¡Éxito! Se registraron las categorías y se importaron ${nuevosProductos.length} productos correctamente.`);
                 cerrarModalImportar();
                 
-                // 3. Forzar la recarga completa de datos globales de la aplicación
+                // PASO 4: Refrescar la interfaz por completo
                 await cargarCategorias();
                 await cargarProductos();
-                
-                // Si estás en la pantalla de stock, refrescar la tabla visual
                 renderizarTablaStock(productosGlobales);
             }
         } catch (err) {
