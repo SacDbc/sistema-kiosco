@@ -595,7 +595,7 @@ async function cambiarEstadoComercio(idComercio, nuevoEstado) {
 async function cargarCategorias() {
     if (!comercioActualId) return;
 
-    // 1. Traer categorías oficiales guardadas en la BD de forma limpia
+    // Traer categorías oficiales guardadas en la BD de forma limpia (sin inserciones automáticas)
     let { data, error } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
 
     if (error) {
@@ -604,17 +604,12 @@ async function cargarCategorias() {
 
     categoriasGlobales = data || [];
 
-    // 2. Si está totalmente vacío, aseguramos al menos "General"
+    // Si la lista viene vacía, aseguramos al menos "General" en memoria para los selectores
     if (categoriasGlobales.length === 0) {
-        await db.from('categorias').insert([{ 
-            user_id: usuarioActual ? usuarioActual.id : null, 
-            comercio_id: comercioActualId, 
-            nombre: 'General' 
-        }]);
         categoriasGlobales = [{ nombre: 'General' }];
     }
 
-    // 3. Poblar todos los selects y la lista visual del modal
+    // Poblar todos los selects y la lista visual del modal
     poblarSelectoresCategorias(categoriasGlobales);
     renderizarListaCategoriasModal();
 }
@@ -664,7 +659,6 @@ async function cargarProductos() {
 
     productosGlobales = data || [];
     
-    // Recargamos categorías para asegurarnos de que la interfaz esté sincronizada
     await cargarCategorias();
 
     renderizarFavoritos(productosGlobales);
