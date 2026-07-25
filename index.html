@@ -9,7 +9,6 @@
 </head>
 <body>
 
-<!-- PANTALLA DE LOGIN -->
 <div id="pantalla-login" style="display:flex; justify-content:center; align-items:center; min-height:100vh; background:#e9ecef;">
     <div style="background:white; padding:30px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.15); width:100%; max-width:380px;">
         <h2 style="text-align:center; color:#007bff; margin-bottom:5px;">🏪 KioscoEnLínea</h2>
@@ -32,7 +31,6 @@
     </div>
 </div>
 
-<!-- PANTALLA DE SUSCRIPCIÓN VENCIDA / PENDIENTE -->
 <div id="pantalla-bloqueo" style="display:none; justify-content:center; align-items:center; min-height:100vh; background:#fff3cd; padding:20px;">
     <div style="background:white; padding:30px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1); width:100%; max-width:450px; text-align:center;">
         <div style="font-size:50px;">⏳</div>
@@ -44,7 +42,6 @@
     </div>
 </div>
 
-<!-- PANTALLA SELECCIÓN DE CAJERO / APERTURA DE TURNO -->
 <div id="pantalla-apertura-turno" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#1e293b; z-index:9999; justify-content:center; align-items:center; padding:20px;">
     <div style="background:white; padding:35px; border-radius:12px; width:100%; max-width:420px; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.3);">
         <h2 style="color:#007bff; margin-bottom:5px;">👋 ¡Hola!</h2>
@@ -68,19 +65,16 @@
     </div>
 </div>
 
-<!-- APLICACIÓN PRINCIPAL -->
 <div id="app-principal" style="display:none;">
 
     <header class="no-print">
         <h1 id="header-titulo-local">🏪 KioscoEnLínea</h1>
 
-        <!-- Selector de Soporte para Super Admin -->
         <div id="selector-soporte-admin" style="display:none; background:rgba(255,255,255,0.2); padding:5px 10px; border-radius:5px;">
             <small style="color:white; font-weight:bold;">🔍 Modo Soporte Cliente:</small>
             <select id="select-comercio-soporte" onchange="cambiarComercioSoporte()" style="padding:4px; border-radius:4px; border:none; outline:none;"></select>
         </div>
 
-        <!-- Indicador y Cambio de Cajero Rápido -->
         <div id="bloque-cajero-activo" style="display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.2); padding:6px 12px; border-radius:6px; color:white;">
             <span>👤 Cajero: <strong id="nombre-cajero-activo">Dueño</strong></span>
             <button onclick="solicitarAperturaTurno()" style="background:#ffc107; color:#333; border:none; padding:4px 8px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px;">🔄 Cambiar Turno</button>
@@ -99,7 +93,6 @@
 
     <div class="container no-print">
 
-        <!-- SECCIÓN VENTAS -->
         <section id="seccion-ventas" class="seccion activa">
             <div class="grid-ventas">
                 <main class="modulo-ventas">
@@ -134,7 +127,6 @@
             </div>
         </section>
 
-        <!-- SECCIÓN STOCK / INVENTARIO -->
         <section id="seccion-stock" class="seccion">
             <div class="modulo-stock">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
@@ -148,7 +140,6 @@
                     </div>
                 </div>
 
-                <!-- Panel de Aumento Masivo -->
                 <div class="panel-aumento-masivo" style="background:#e7f1ff; border:1px solid #b6d4fe; padding:15px; border-radius:6px; margin-bottom:15px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                     <strong>📈 Aumento Masivo:</strong>
                     <select id="aumento-categoria" style="padding:8px; border-radius:4px; border:1px solid #ccc;">
@@ -163,7 +154,6 @@
                     <button onclick="aplicarAumentoMasivo()" style="background:#007bff; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⚡ Aplicar Aumento</button>
                 </div>
 
-                <!-- Buscador Inteligente -->
                 <div style="margin-bottom: 15px;">
                     <input type="text" id="buscador-stock" oninput="filtrarTablaStock()" placeholder="🔍 Buscar en inventario por nombre, categoría o código de barras..." style="width:100%; padding:10px 14px; border:1px solid #007bff; border-radius:6px; font-size:14px; outline:none;">
                 </div>
@@ -188,7 +178,6 @@
             </div>
         </section>
 
-        <!-- SECCIÓN HISTORIAL Y CIERRE DE CAJA -->
         <section id="seccion-historial" class="seccion">
             <div class="modulo-stock">
                 <h2>📊 Cierre de Caja e Historial de Ventas</h2>
@@ -231,7 +220,6 @@
             </div>
         </section>
 
-        <!-- SECCIÓN GESTIÓN DE VENDEDORES -->
         <section id="seccion-vendedores" class="seccion">
             <div class="modulo-stock">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
@@ -256,7 +244,6 @@
             </div>
         </section>
 
-        <!-- SECCIÓN PANEL ADMIN -->
         <section id="seccion-admin" class="seccion">
             <div class="modulo-stock">
                 <h2>👑 Panel de Administración SaaS</h2>
@@ -280,7 +267,6 @@
 
     </div>
 
-    <!-- Modal Crear/Editar Producto con Promoción y Favorito -->
     <div id="modal-producto" class="modal no-print">
         <div class="modal-contenido" style="max-width:450px;">
             <h2 id="modal-titulo-prod">Nuevo Producto</h2>
@@ -303,11 +289,16 @@
             </div>
 
             <div style="display:flex; gap:10px;">
-                <input type="number" id="p-stock-minimo" placeholder="Stock Mínimo" value="3" style="flex:1;">
-                <input type="text" id="p-codigo" placeholder="Código de Barras (Opcional)" style="flex:1;">
+                <div style="flex:1;">
+                    <label style="font-size:12px; font-weight:bold; color:#666;">STOCK MÍNIMO (Alerta):</label>
+                    <input type="number" id="p-stock-minimo" placeholder="Stock Mínimo" value="3">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size:12px; font-weight:bold; color:#666;">CÓDIGO DE BARRAS:</label>
+                    <input type="text" id="p-codigo" placeholder="Opcional">
+                </div>
             </div>
 
-            <!-- Opción Favorito / Botón Rápido -->
             <div style="background:#eef2ff; border:1px solid #c7d2fe; padding:10px; border-radius:6px; margin-top:10px;">
                 <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:bold; color:#3730a3; cursor:pointer;">
                     <input type="checkbox" id="p-favorito"> ⭐ Mostrar en Botones Rápidos (Punto de Venta)
@@ -315,7 +306,6 @@
                 <small style="color:#666; display:block; margin-top:2px;">Ideal para golosinas, cigarrillos sueltos o productos sin código de barras.</small>
             </div>
 
-            <!-- Opción Promoción por Cantidad -->
             <div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:12px; border-radius:6px; margin-top:10px;">
                 <strong style="color:#166534; font-size:13px; display:block; margin-bottom:6px;">🎁 Promoción / Combo por Cantidad (Opcional)</strong>
                 <div style="display:flex; gap:10px;">
@@ -338,7 +328,6 @@
         </div>
     </div>
 
-    <!-- Modales adicionales (Vendedores, Config, Importar, Categorías, Cobro) -->
     <div id="modal-vendedor" class="modal no-print">
         <div class="modal-contenido" style="max-width:420px;">
             <h2 id="modal-vendedor-titulo">➕ Nuevo Vendedor</h2>
@@ -466,7 +455,6 @@
         </div>
     </div>
 
-    <!-- Ticket Impresión -->
     <div id="ticket-impresion"></div>
 
 </div>

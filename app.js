@@ -499,9 +499,9 @@ function cambiarPestaña(tab) {
 
 async function cargarTodo() {
     aplicarConfiguracionUI();
-    await cargarVendedores();
     await cargarCategorias();
     await cargarProductos();
+    await cargarVendedores();
 }
 
 function abrirModalConfig() {
@@ -597,29 +597,48 @@ async function cargarCategorias() {
     const { data } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
 
     categoriasGlobales = data || [];
+    
+    const catsEnProductos = [...new Set(productosGlobales.map(p => p.categoria || 'General'))];
+    for (const catNombre of catsEnProductos) {
+        const existe = categoriasGlobales.find(c => c.nombre.toLowerCase() === catNombre.toLowerCase());
+        if (!existe) {
+            await db.from('categorias').insert([{ user_id: usuarioActual.id, comercio_id: comercioActualId, nombre: catNombre }]);
+        }
+    }
+
+    if (catsEnProductos.length > 0) {
+        const { data: dataActualizada } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
+        categoriasGlobales = dataActualizada || categoriasGlobales;
+    }
+
     poblarSelectoresCategorias(categoriasGlobales);
 }
 
 function poblarSelectoresCategorias(lista) {
     const selectProd = document.getElementById('p-categoria-select');
-    selectProd.innerHTML = '<option value="General">General</option>';
-    
-    lista.forEach(cat => {
-        const opt = document.createElement('option');
-        opt.value = cat.nombre;
-        opt.innerText = cat.nombre;
-        selectProd.appendChild(opt);
-    });
+    if (selectProd) {
+        selectProd.innerHTML = '';
+        lista.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat.nombre;
+            opt.innerText = cat.nombre;
+            selectProd.appendChild(opt);
+        });
+        if (lista.length === 0) {
+            selectProd.innerHTML = '<option value="General">General</option>';
+        }
+    }
 
     const selectAumento = document.getElementById('aumento-categoria');
-    selectAumento.innerHTML = '<option value="">Todas las categorías</option>';
-    
-    lista.forEach(cat => {
-        const opt = document.createElement('option');
-        opt.value = cat.nombre;
-        opt.innerText = cat.nombre;
-        selectAumento.appendChild(opt);
-    });
+    if (selectAumento) {
+        selectAumento.innerHTML = '<option value="">Todas las categorías</option>';
+        lista.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat.nombre;
+            opt.innerText = cat.nombre;
+            selectAumento.appendChild(opt);
+        });
+    }
 }
 
 async function cargarProductos() {
@@ -635,7 +654,6 @@ function renderizarFavoritos(lista) {
     const contenedor = document.getElementById('contenedor-favoritos');
     contenedor.innerHTML = '';
 
-    // Filtrar solo los marcados como Favorito / Botón Rápido
     const favoritos = lista.filter(p => p.es_favorito === true);
 
     if (favoritos.length === 0) {
@@ -670,6 +688,7 @@ function renderizarFavoritos(lista) {
 
 function renderizarTablaStock(lista) {
     const tbody = document.getElementById('tabla-body-stock');
+    if (!tbody) return;
     tbody.innerHTML = '';
 
     if (lista.length === 0) {
@@ -712,7 +731,28 @@ function renderizarTablaStock(lista) {
     });
 }
 
-/* LÓGICA DE CARRITO Y CÁLCULO DE COMBO / PROMOCIONES AUTOMÁTICO */
+function filtrarTablaStock() {
+    const input = document.getElementById('buscador-stock');
+    if (!input) return;
+
+    const texto = input.value.toLowerCase().trim();
+    if (!texto) {
+        renderizarTablaStock(productosGlobales);
+        return;
+    }
+
+    const filtrados = productosGlobales.filter(p => {
+        const nombre = (p.nombre || '').toLowerCase();
+        const categoria = (p.categoria || 'general').toLowerCase();
+        const codigo = (p.codigo_barras || '').toString().toLowerCase();
+
+        return nombre.includes(texto) || categoria.includes(texto) || codigo.includes(texto);
+    });
+
+    renderizarTablaStock(filtrados);
+}
+
+/* LÓGICA DE CARRITO Y COMBOS */
 function agregarAlCarrito(producto, cantidad = 1) {
     const existe = carrito.find(item => item.id === producto.id);
     if (existe) {
@@ -732,7 +772,6 @@ function actualizarCarritoUI() {
         let subtotal = 0;
         let esPromoAplicada = false;
 
-        // Verificar si el producto tiene promoción por cantidad
         if (item.promo_cant && item.promo_precio && item.cantidad >= item.promo_cant) {
             esPromoAplicada = true;
             const combosCompletos = Math.floor(item.cantidad / item.promo_cant);
@@ -1091,7 +1130,7 @@ function actualizarTotalesCaja(total, efectivo, qr, transf) {
     document.getElementById('caja-transf').innerText = `$${transf}`;
 }
 
-/* MODALES DE CREACIÓN Y EDICIÓN DE PRODUCTO CON PROMO/FAVORITO */
+/* MODALES PRODUCTO */
 function abrirModalCrear() {
     document.getElementById('modal-titulo-prod').innerText = 'Nuevo Producto';
     document.getElementById('p-id').value = '';
@@ -1175,7 +1214,8 @@ async function guardarProducto() {
     else {
         alert("¡Producto guardado exitosamente!");
         cerrarModal();
-        cargarProductos();
+        await cargarCategorias();
+        await cargarProductos();
     }
 }
 
@@ -1353,6 +1393,7 @@ async function procesarArchivoCSV() {
             } else {
                 alert(`¡Se importaron ${nuevosProductos.length} productos con éxito!`);
                 cerrarModalImportar();
+                await cargarCategorias();
                 await cargarProductos();
             }
         } catch (err) {
