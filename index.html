@@ -9,12 +9,16 @@
 </head>
 <body>
 
+<!-- PANTALLA DE LOGIN -->
 <div id="pantalla-login" style="display:flex; justify-content:center; align-items:center; min-height:100vh; background:#e9ecef;">
     <div style="background:white; padding:30px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.15); width:100%; max-width:380px;">
         <h2 style="text-align:center; color:#007bff; margin-bottom:5px;">🏪 KioscoEnLínea</h2>
         <p style="text-align:center; color:#666; font-size:14px; margin-bottom:20px;" id="login-subtitulo">Ingresá a tu cuenta</p>
 
         <form onsubmit="manejarAuth(event)" style="display:flex; flex-direction:column; gap:12px;">
+            <div id="bloque-nombre-comercio" style="display:none;">
+                <input type="text" id="auth-comercio" placeholder="Nombre de tu Kiosco / Comercio" style="padding:12px; border:1px solid #ccc; border-radius:6px; font-size:15px; width:100%;">
+            </div>
             <input type="email" id="auth-email" placeholder="Correo Electrónico" required style="padding:12px; border:1px solid #ccc; border-radius:6px; font-size:15px;">
             <input type="password" id="auth-password" placeholder="Contraseña" required style="padding:12px; border:1px solid #ccc; border-radius:6px; font-size:15px;">
 
@@ -22,39 +26,50 @@
         </form>
 
         <div style="text-align:center; margin-top:15px; font-size:13px;">
-            <span id="text-toggle-auth">¿No tenés cuenta?</span> 
+            <span id="text-toggle-auth">¿Registrar nuevo comercio?</span> 
             <a href="#" onclick="toggleModoAuth(event)" id="link-toggle-auth" style="color:#007bff; font-weight:bold; text-decoration:none;">Registrate acá</a>
         </div>
     </div>
 </div>
 
+<!-- PANTALLA DE SUSCRIPCIÓN VENCIDA -->
 <div id="pantalla-bloqueo" style="display:none; justify-content:center; align-items:center; min-height:100vh; background:#fff3cd; padding:20px;">
     <div style="background:white; padding:30px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1); width:100%; max-width:450px; text-align:center;">
         <div style="font-size:50px;">⚠️</div>
         <h2 style="color:#856404; margin-bottom:10px;">Suscripción Inactiva o Vencida</h2>
         <p style="color:#666; line-height:1.5; margin-bottom:20px;">
-            Tu cuenta no tiene una suscripción activa asignada. Para renovar tu acceso o abonar el servicio, contactate con administración.
+            Tu comercio no tiene una suscripción activa asignada. Para renovar tu acceso, contactate con el administrador.
         </p>
-        <button onclick="cerrarSesion()" style="background:#dc3545; color:white; border:none; padding:10px 20px; border-radius:5px; font-weight:bold; cursor:pointer;">🚪 Salir / Iniciar con otra cuenta</button>
+        <button onclick="cerrarSesion()" style="background:#dc3545; color:white; border:none; padding:10px 20px; border-radius:5px; font-weight:bold; cursor:pointer;">🚪 Salir</button>
     </div>
 </div>
 
+<!-- APLICACIÓN PRINCIPAL -->
 <div id="app-principal" style="display:none;">
 
     <header class="no-print">
         <h1 id="header-titulo-local">🏪 KioscoEnLínea</h1>
+
+        <!-- Selector de Soporte para Super Admin -->
+        <div id="selector-soporte-admin" style="display:none; background:rgba(255,255,255,0.2); padding:5px 10px; border-radius:5px;">
+            <small style="color:white; font-weight:bold;">🔍 Modo Soporte Cliente:</small>
+            <select id="select-comercio-soporte" onchange="cambiarComercioSoporte()" style="padding:4px; border-radius:4px; border:none; outline:none;"></select>
+        </div>
+
         <nav class="nav-tabs">
             <button id="btn-tab-ventas" class="tab-btn activo" onclick="cambiarPestaña('ventas')">🛒 Punto de Venta</button>
             <button id="btn-tab-stock" class="tab-btn" onclick="cambiarPestaña('stock')">📦 Control de Stock</button>
             <button id="btn-tab-historial" class="tab-btn" onclick="cambiarPestaña('historial')">📊 Historial / Caja</button>
+            <button id="btn-tab-vendedores" class="tab-btn" onclick="cambiarPestaña('vendedores')" style="display:none;">👥 Vendedores</button>
             <button id="btn-tab-admin" class="tab-btn" onclick="cambiarPestaña('admin')" style="display:none; background:#ffc107; color:#333;">👑 Panel Admin</button>
-            <button class="tab-btn" onclick="abrirModalConfig()" style="background:rgba(255,255,255,0.3);">⚙️ Config</button>
+            <button id="btn-tab-config" class="tab-btn" onclick="abrirModalConfig()" style="background:rgba(255,255,255,0.3);">⚙️ Config</button>
             <button class="tab-btn" onclick="cerrarSesion()" style="background:#dc3545;">🚪 Salir</button>
         </nav>
     </header>
 
     <div class="container no-print">
 
+        <!-- SECCIÓN VENTAS -->
         <section id="seccion-ventas" class="seccion activa">
             <div class="grid-ventas">
                 <main class="modulo-ventas">
@@ -89,6 +104,7 @@
             </div>
         </section>
 
+        <!-- SECCIÓN STOCK / INVENTARIO -->
         <section id="seccion-stock" class="seccion">
             <div class="modulo-stock">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
@@ -102,6 +118,7 @@
                     </div>
                 </div>
 
+                <!-- Panel de Aumento Masivo -->
                 <div class="panel-aumento-masivo" style="background:#e7f1ff; border:1px solid #b6d4fe; padding:15px; border-radius:6px; margin-bottom:15px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                     <strong>📈 Aumento Masivo:</strong>
                     <select id="aumento-categoria" style="padding:8px; border-radius:4px; border:1px solid #ccc;">
@@ -116,6 +133,7 @@
                     <button onclick="aplicarAumentoMasivo()" style="background:#007bff; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⚡ Aplicar Aumento</button>
                 </div>
 
+                <!-- Buscador Inteligente -->
                 <div style="margin-bottom: 15px;">
                     <input type="text" id="buscador-stock" oninput="filtrarTablaStock()" placeholder="🔍 Buscar en inventario por nombre, categoría o código de barras..." style="width:100%; padding:10px 14px; border:1px solid #007bff; border-radius:6px; font-size:14px; outline:none;">
                 </div>
@@ -138,6 +156,7 @@
             </div>
         </section>
 
+        <!-- SECCIÓN HISTORIAL Y CIERRE DE CAJA -->
         <section id="seccion-historial" class="seccion">
             <div class="modulo-stock">
                 <h2>📊 Cierre de Caja e Historial de Ventas</h2>
@@ -179,17 +198,42 @@
             </div>
         </section>
 
-        <section id="seccion-admin" class="seccion">
+        <!-- SECCIÓN GESTIÓN DE VENDEDORES (Para el Dueño del Kiosco) -->
+        <section id="seccion-vendedores" class="seccion">
             <div class="modulo-stock">
-                <h2>👑 Panel de Administración de Clientes SaaS</h2>
-                <p style="color:#666; font-size:14px; margin-bottom:15px;">Gestión y control de cuentas activas de kioscos suscriptos.</p>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                    <h2>👥 Gestión de Vendedores / Cajeros</h2>
+                    <button class="btn-crear" onclick="abrirModalVendedor()">➕ Crear Vendedor</button>
+                </div>
+                <p style="color:#666; font-size:14px; margin-bottom:15px;">Creá usuarios para tus empleados. Ellos solo tendrán acceso al Punto de Venta para cobrar.</p>
 
                 <div class="tabla-contenedor">
                     <table class="tabla-stock">
                         <thead>
                             <tr>
-                                <th>Email Cliente</th>
+                                <th>Email Vendedor</th>
+                                <th>Rol</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-body-vendedores"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN PANEL ADMIN (Exclusivo Super Admin) -->
+        <section id="seccion-admin" class="seccion">
+            <div class="modulo-stock">
+                <h2>👑 Panel de Administración SaaS</h2>
+                <p style="color:#666; font-size:14px; margin-bottom:15px;">Gestión de suscripciones y comercios clientes.</p>
+
+                <div class="tabla-contenedor">
+                    <table class="tabla-stock">
+                        <thead>
+                            <tr>
                                 <th>Nombre Comercio</th>
+                                <th>Email Dueño</th>
                                 <th>Estado Suscripción</th>
                                 <th>Vencimiento</th>
                                 <th>Acciones</th>
@@ -201,6 +245,19 @@
             </div>
         </section>
 
+    </div>
+
+    <!-- Modales -->
+    <div id="modal-vendedor" class="modal no-print">
+        <div class="modal-contenido">
+            <h2>➕ Crear Usuario Vendedor</h2>
+            <input type="email" id="vend-email" placeholder="Correo del Vendedor">
+            <input type="password" id="vend-password" placeholder="Contraseña de Acceso">
+            <div class="modal-acciones">
+                <button class="btn-guardar" onclick="crearVendedor()">Crear Vendedor</button>
+                <button class="btn-cancelar" onclick="cerrarModalVendedor()">Cancelar</button>
+            </div>
+        </div>
     </div>
 
     <div id="modal-config" class="modal no-print">
@@ -313,6 +370,7 @@
         </div>
     </div>
 
+    <!-- Ticket Impresión -->
     <div id="ticket-impresion"></div>
 
 </div>
