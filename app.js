@@ -1317,6 +1317,7 @@ async function procesarArchivoCSV() {
 
     const btn = document.getElementById('btn-procesar-importacion');
     btn.disabled = true;
+    btn.innerText = "Cargando...";
 
     lector.onload = async function(e) {
         try {
@@ -1327,30 +1328,54 @@ async function procesarArchivoCSV() {
                 const linea = lineas[i].trim();
                 if (!linea) continue;
 
+                // Separar adecuadamente teniendo en cuenta comas dentro o fuera de comillas
                 const columnas = linea.split(',');
                 if (columnas.length >= 3) {
-                    const nombre = columnas[0]?.trim();
-                    const categoria = columnas[1]?.trim() || 'General';
-                    const precio = Number(columnas[2]?.trim());
-                    const stock = Number(columnas[3]?.trim()) || 0;
-                    const codigo = columnas[4]?.trim() || null;
+                    const nombre = columnas[0]?.replace(/"/g, '').trim();
+                    const categoria = columnas[1]?.replace(/"/g, '').trim() || 'General';
+                    const precio = Number(columnas[2]?.replace(/"/g, '').trim());
+                    const stock = Number(columnas[3]?.replace(/"/g, '').trim()) || 0;
+                    const codigo = columnas[4]?.replace(/"/g, '').trim() || null;
 
                     if (nombre && !isNaN(precio)) {
-                        nuevosProductos.push({ user_id: usuarioActual.id, comercio_id: comercioActualId, nombre, categoria, precio, stock, codigo_barras: codigo, stock_minimo: 3 });
+                        nuevosProductos.push({
+                            user_id: usuarioActual.id,
+                            comercio_id: comercioActualId,
+                            nombre: nombre,
+                            categoria: categoria,
+                            precio: precio,
+                            stock: stock,
+                            stock_minimo: 3,
+                            codigo_barras: codigo ? String(codigo) : null
+                        });
                     }
                 }
             }
 
-            if (nuevosProductos.length > 0) {
-                await db.from('productos').insert(nuevosProductos);
+            if (nuevosProductos.length === 0) {
+                alert("⚠️ No se encontraron productos válidos en el archivo.");
+                btn.disabled = false;
+                btn.innerText = "🚀 Cargar Productos";
+                return;
+            }
+
+            // Insertar en Supabase
+            const { error } = await db.from('productos').insert(nuevosProductos);
+
+            if (error) {
+                console.error("Error al importar:", error);
+                alert("⚠️ Error de Supabase al guardar: " + error.message);
+            } else {
                 alert(`¡Se importaron ${nuevosProductos.length} productos con éxito!`);
                 cerrarModalImportar();
                 await cargarProductos();
             }
         } catch (err) {
-            alert("Error al procesar el archivo.");
+            console.error("Error crítico:", err);
+            alert("Error al procesar el archivo CSV: " + err.message);
         } finally {
             btn.disabled = false;
+            btn.innerText = "🚀 Cargar Productos";
         }
     };
 
