@@ -7,6 +7,7 @@ let perfilUsuario = null;
 let comercioActualId = null;
 let comercioObjeto = null;
 let cajeroActivoNombre = 'Dueño';
+let cajeroActivoObjeto = null; // Objeto con permisos
 let cajeroSeleccionadoTemp = null;
 
 let productosGlobales = [];
@@ -97,12 +98,11 @@ async function verificarOcrearPerfil(user) {
     configComercio.nombre = comercio.nombre_comercio;
     configComercio.pinDueno = comercio.pin_dueno || '0000';
 
-    // VERIFICAR ALTA DIRECTA/APROBACIÓN
     if (comercio.estado_suscripcion === 'pendiente') {
         document.getElementById('pantalla-login').style.display = 'none';
         document.getElementById('pantalla-bloqueo').style.display = 'flex';
         document.getElementById('titulo-bloqueo').innerText = "Cuenta Pendiente de Aprobación";
-        document.getElementById('mensaje-bloqueo').innerText = "Tu comercio fue registrado. Sergio / Administración habilitará tu acceso en breve.";
+        document.getElementById('mensaje-bloqueo').innerText = "Tu comercio fue registrado. Sergio habilitará tu acceso en breve.";
         document.getElementById('app-principal').style.display = 'none';
         return;
     } else if (comercio.estado_suscripcion === 'vencido') {
@@ -117,12 +117,6 @@ async function verificarOcrearPerfil(user) {
     document.getElementById('pantalla-login').style.display = 'none';
     document.getElementById('pantalla-bloqueo').style.display = 'none';
     document.getElementById('app-principal').style.display = 'block';
-
-    document.getElementById('btn-tab-ventas').style.display = 'inline-block';
-    document.getElementById('btn-tab-stock').style.display = 'inline-block';
-    document.getElementById('btn-tab-historial').style.display = 'inline-block';
-    document.getElementById('btn-tab-vendedores').style.display = 'inline-block';
-    document.getElementById('btn-tab-admin').style.display = 'none';
 
     await cargarTodo();
     solicitarAperturaTurno();
@@ -173,7 +167,7 @@ async function cerrarSesion() {
     location.reload();
 }
 
-/* APERTURA DE TURNO Y BLOQUEO POR PIN */
+/* APERTURA DE TURNO Y CONTROL VISIBILIDAD PERMISOS */
 function solicitarAperturaTurno() {
     renderizarBotonesAperturaTurno();
     document.getElementById('bloque-ingreso-pin-apertura').style.display = 'none';
@@ -214,7 +208,10 @@ function confirmarIngresoTurno() {
     const pin = document.getElementById('input-pin-apertura').value.trim();
     if (cajeroSeleccionadoTemp && cajeroSeleccionadoTemp.pin === pin) {
         cajeroActivoNombre = cajeroSeleccionadoTemp.nombre;
+        cajeroActivoObjeto = cajeroSeleccionadoTemp;
+        
         actualizarNombreCajeroUI();
+        aplicarPermisosVisuales();
         document.getElementById('pantalla-apertura-turno').style.display = 'none';
         cambiarPestaña('ventas');
     } else {
@@ -226,7 +223,9 @@ function ingresarComoDuenoDirecto() {
     const pin = prompt("Ingresá tu PIN de Dueño / Administrador:", "");
     if (pin === configComercio.pinDueno) {
         cajeroActivoNombre = 'Dueño';
+        cajeroActivoObjeto = null; // Dueño full
         actualizarNombreCajeroUI();
+        aplicarPermisosVisuales();
         document.getElementById('pantalla-apertura-turno').style.display = 'none';
         cambiarPestaña('ventas');
     } else if (pin !== null) {
@@ -234,12 +233,44 @@ function ingresarComoDuenoDirecto() {
     }
 }
 
+function aplicarPermisosVisuales() {
+    const btnStock = document.getElementById('btn-tab-stock');
+    const btnHistorial = document.getElementById('btn-tab-historial');
+    const btnVend = document.getElementById('btn-tab-vendedores');
+    const btnConfig = document.getElementById('btn-tab-config');
+
+    if (cajeroActivoNombre === 'Dueño' || perfilUsuario.rol === 'super_admin') {
+        btnStock.style.display = 'inline-block';
+        btnHistorial.style.display = 'inline-block';
+        btnVend.style.display = 'inline-block';
+        btnConfig.style.display = 'inline-block';
+    } else if (cajeroActivoObjeto) {
+        btnStock.style.display = cajeroActivoObjeto.perm_stock ? 'inline-block' : 'none';
+        btnHistorial.style.display = cajeroActivoObjeto.perm_historial ? 'inline-block' : 'none';
+        btnVend.style.display = cajeroActivoObjeto.perm_vendedores ? 'inline-block' : 'none';
+        btnConfig.style.display = 'none'; // Config siempre reservado al dueño
+    }
+}
+
 function intentarAccesoProtegido(tab) {
     if (cajeroActivoNombre === 'Dueño' || perfilUsuario.rol === 'super_admin') {
         if (tab === 'config') abrirModalConfig();
         else cambiarPestaña(tab);
+        return;
+    }
+
+    // Verificar si el vendedor tiene el permiso
+    let tienePermiso = false;
+    if (cajeroActivoObjeto) {
+        if (tab === 'stock' && cajeroActivoObjeto.perm_stock) tienePermiso = true;
+        if (tab === 'historial' && cajeroActivoObjeto.perm_historial) tienePermiso = true;
+        if (tab === 'vendedores' && cajeroActivoObjeto.perm_vendedores) tienePermiso = true;
+    }
+
+    if (tienePermiso) {
+        cambiarPestaña(tab);
     } else {
-        const pin = prompt(`🔒 Área protegida. Para ingresar a ${tab.toUpperCase()}, ingresá el PIN de Dueño:`, "");
+        const pin = prompt(`🔒 Área protegida. Ingresá el PIN de Dueño para acceder a ${tab.toUpperCase()}:`, "");
         if (pin === configComercio.pinDueno) {
             if (tab === 'config') abrirModalConfig();
             else cambiarPestaña(tab);
@@ -254,7 +285,7 @@ function actualizarNombreCajeroUI() {
     if (elem) elem.innerText = cajeroActivoNombre;
 }
 
-/* VENDEDORES */
+/* CREAR / EDITAR VENDEDORES CON CHECKBOXES */
 async function cargarVendedores() {
     if (!comercioActualId) return;
     const { data } = await db.from('vendedores').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
@@ -268,16 +299,23 @@ function renderizarTablaVendedores() {
 
     tbody.innerHTML = '';
     if (vendedoresGlobales.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#888;">No hay vendedores cargados.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#888;">No hay vendedores cargados.</td></tr>';
         return;
     }
 
     vendedoresGlobales.forEach(v => {
+        let listaPermisos = ['🛒 Punto Venta'];
+        if (v.perm_stock) listaPermisos.push('📦 Stock');
+        if (v.perm_historial) listaPermisos.push('📊 Caja');
+        if (v.perm_vendedores) listaPermisos.push('👥 Vendedores');
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><strong>${v.nombre}</strong></td>
+            <td><small style="color:#007bff; font-weight:bold;">${listaPermisos.join(' | ')}</small></td>
             <td><code>****</code></td>
             <td>
+                <button onclick="abrirModalEditarVendedor(${v.id})" style="background:#ffc107; color:#333; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-weight:bold; margin-right:5px;">✏️ Editar</button>
                 <button onclick="eliminarVendedor(${v.id})" style="background:#dc3545; color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-weight:bold;">🗑️ Eliminar</button>
             </td>
         `;
@@ -286,8 +324,31 @@ function renderizarTablaVendedores() {
 }
 
 function abrirModalVendedor() {
+    document.getElementById('modal-vendedor-titulo').innerText = '➕ Nuevo Vendedor';
+    document.getElementById('vend-id').value = '';
     document.getElementById('vend-nombre').value = '';
     document.getElementById('vend-pin').value = '';
+    
+    document.getElementById('chk-perm-stock').checked = false;
+    document.getElementById('chk-perm-historial').checked = false;
+    document.getElementById('chk-perm-vendedores').checked = false;
+
+    document.getElementById('modal-vendedor').style.display = 'flex';
+}
+
+function abrirModalEditarVendedor(id) {
+    const v = vendedoresGlobales.find(item => item.id === id);
+    if (!v) return;
+
+    document.getElementById('modal-vendedor-titulo').innerText = '✏️ Editar Vendedor';
+    document.getElementById('vend-id').value = v.id;
+    document.getElementById('vend-nombre').value = v.nombre;
+    document.getElementById('vend-pin').value = v.pin || '';
+
+    document.getElementById('chk-perm-stock').checked = v.perm_stock || false;
+    document.getElementById('chk-perm-historial').checked = v.perm_historial || false;
+    document.getElementById('chk-perm-vendedores').checked = v.perm_vendedores || false;
+
     document.getElementById('modal-vendedor').style.display = 'flex';
 }
 
@@ -296,21 +357,38 @@ function cerrarModalVendedor() {
 }
 
 async function guardarVendedorNuevo() {
+    const id = document.getElementById('vend-id').value;
     const nombre = document.getElementById('vend-nombre').value.trim();
     const pin = document.getElementById('vend-pin').value.trim();
 
+    const perm_stock = document.getElementById('chk-perm-stock').checked;
+    const perm_historial = document.getElementById('chk-perm-historial').checked;
+    const perm_vendedores = document.getElementById('chk-perm-vendedores').checked;
+
     if (!nombre || !pin) return alert("Completá el nombre y el PIN numérico.");
 
-    const { error } = await db.from('vendedores').insert([{
+    const datos = {
         comercio_id: comercioActualId,
         nombre,
-        pin
-    }]);
+        pin,
+        perm_stock,
+        perm_historial,
+        perm_vendedores
+    };
+
+    let error;
+    if (id) {
+        const res = await db.from('vendedores').update(datos).eq('id', id);
+        error = res.error;
+    } else {
+        const res = await db.from('vendedores').insert([datos]);
+        error = res.error;
+    }
 
     if (error) {
         alert("Error al guardar vendedor.");
     } else {
-        alert("¡Vendedor agregado con éxito!");
+        alert("¡Vendedor guardado con éxito!");
         cerrarModalVendedor();
         await cargarVendedores();
     }
@@ -438,7 +516,7 @@ async function cargarTablaAdmin() {
     tbody.innerHTML = '';
     for (const c of comercios) {
         const estado = c.estado_suscripcion || 'pendiente';
-        let badgeStyle = '#ffc107'; // Pendiente amarillo
+        let badgeStyle = '#ffc107';
         let badgeText = '⏳ PENDIENTE DE ALTA';
 
         if (estado === 'activo') {
