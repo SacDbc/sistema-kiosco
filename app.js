@@ -595,7 +595,7 @@ async function cambiarEstadoComercio(idComercio, nuevoEstado) {
 async function cargarCategorias() {
     if (!comercioActualId) return;
 
-    // 1. Traer categorías oficiales guardadas en la BD
+    // 1. Traer categorías oficiales guardadas en la BD de forma segura
     let { data, error } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
 
     if (error) {
@@ -604,39 +604,44 @@ async function cargarCategorias() {
 
     categoriasGlobales = data || [];
 
-    // 2. Seguridad extra: Si hay productos cargados con categorías que no están en la tabla, las insertamos automáticamente
+    // 2. Extraer categorías desde los productos actuales y agregarlas solo si no existen en memoria
     if (productosGlobales && productosGlobales.length > 0) {
         const catsEnProductos = [...new Set(productosGlobales.map(p => p.categoria || 'General'))];
+        
         for (const catNombre of catsEnProductos) {
-            const existe = categoriasGlobales.find(c => c.nombre.toLowerCase() === catNombre.toLowerCase());
-            if (!existe && catNombre) {
-                await db.from('categorias').insert([{ 
+            if (!catNombre) continue;
+            
+            // Verificamos si ya existe en el array local (evitando duplicados y llamadas innecesarias)
+            const existeLocal = categoriasGlobales.find(c => c.nombre.toLowerCase() === catNombre.toLowerCase());
+            
+            if (!existeLocal) {
+                // Insertamos en la BD de forma silenciosa
+                const { error: errInsert } = await db.from('categorias').insert([{ 
                     user_id: usuarioActual ? usuarioActual.id : null, 
                     comercio_id: comercioActualId, 
                     nombre: catNombre 
                 }]);
+                
+                // Si se insertó bien, la sumamos al array local
+                if (!errInsert) {
+                    categoriasGlobales.push({ nombre: catNombre });
+                }
             }
         }
-        // Volvemos a consultar para tener la lista completa y actualizada
-        const { data: dataActualizada } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
-        categoriasGlobales = dataActualizada || categoriasGlobales;
     }
 
-    // 3. Si aún así está totalmente vacío, aseguramos al menos "General"
+    // 3. Si la lista sigue vacía, aseguramos al menos "General"
     if (categoriasGlobales.length === 0) {
-        await db.from('categorias').insert([{ 
-            user_id: usuarioActual ? usuarioActual.id : null, 
-            comercio_id: comercioActualId, 
-            nombre: 'General' 
-        }]);
         categoriasGlobales = [{ nombre: 'General' }];
     }
 
-    // 4. Poblar todos los selects y la lista visual del modal de categorías
+    // Ordenar alfabéticamente
+    categoriasGlobales.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+    // 4. Poblar todos los selects y la lista visual del modal
     poblarSelectoresCategorias(categoriasGlobales);
     renderizarListaCategoriasModal();
 }
-
 function poblarSelectoresCategorias(lista) {
     // Asegurar que siempre haya al menos una categoría por defecto si la lista viene vacía
     const categoriasValidas = (lista && lista.length > 0) ? lista : [{ nombre: 'General' }];
