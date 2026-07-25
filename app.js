@@ -582,6 +582,23 @@ async function cargarTablaAdmin() {
                 ${estado === 'vencido' ? `<button onclick="cambiarEstadoComercio(${c.id}, 'activo')" style="background:#007bff; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">⚡ Reactivar Acceso</button>` : ''}
             </td>
         `;
+// Dentro del bucle for (const c of comercios) en cargarTablaAdmin():
+tr.innerHTML = `
+    <td><strong>${c.nombre_comercio}</strong></td>
+    <td><small>${c.dueno_id}</small></td>
+    <td>
+        <span style="background:${badgeStyle}; color:white; padding:3px 8px; border-radius:4px; font-weight:bold; font-size:12px;">
+            ${badgeText}
+        </span>
+    </td>
+    <td>
+        ${estado === 'pendiente' ? `<button onclick="cambiarEstadoComercio(${c.id}, 'activo')" style="background:#28a745; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:5px;">✅ Dar de Alta</button>` : ''}
+        ${estado === 'activo' ? `<button onclick="cambiarEstadoComercio(${c.id}, 'vencido')" style="background:#dc3545; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:5px;">🚫 Suspender</button>` : ''}
+        ${estado === 'vencido' ? `<button onclick="cambiarEstadoComercio(${c.id}, 'activo')" style="background:#007bff; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:5px;">⚡ Reactivar</button>` : ''}
+        
+        <button onclick="eliminarComercioAdmin(${c.id}, '${c.nombre_comercio}')" style="background:#343a40; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">🗑️ Eliminar</button>
+    </td>
+`;
         tbody.appendChild(tr);
     }
 }
@@ -1448,4 +1465,19 @@ async function procesarArchivoCSV() {
     };
 
     lector.readAsText(archivo);
+}
+
+async function eliminarComercioAdmin(idComercio, nombreComercio) {
+    if (confirm(`⚠️ ¿Estás seguro de eliminar por completo el comercio "${nombreComercio}" y todos sus datos asociados? Esta acción no se puede deshacer.`)) {
+        // Borramos el comercio de la tabla (las FK con cascade o eliminación directa)
+        const { error } = await db.from('comercios').delete().eq('id', idComercio);
+        
+        if (error) {
+            alert("Error al eliminar el comercio: " + error.message);
+        } else {
+            alert(`El comercio "${nombreComercio}" fue eliminado correctamente.`);
+            cargarTablaAdmin(); // Recarga la tabla del panel
+            cargarComerciosSoporte(); // Actualiza el selector superior si corresponde
+        }
+    }
 }
