@@ -1410,7 +1410,7 @@ async function procesarArchivoCSV() {
         try {
             const lineas = e.target.result.split('\n');
             const nuevosProductos = [];
-            const categoriasSet = new Set();
+            const categoriasSet = new Set(); // Conjunto para extraer categorías únicas del CSV
 
             for (let i = 1; i < lineas.length; i++) {
                 const linea = lineas[i].trim();
@@ -1425,10 +1425,10 @@ async function procesarArchivoCSV() {
                     const codigo = columnas[4]?.replace(/"/g, '').trim() || null;
 
                     if (nombre && !isNaN(precio)) {
-                        categoriasSet.add(categoria);
+                        categoriasSet.add(categoria); // Guardamos la categoría única
 
                         nuevosProductos.push({
-                            user_id: usuarioActual ? usuarioActual.id : null,
+                            user_id: usuarioActual.id,
                             comercio_id: comercioActualId,
                             nombre: nombre,
                             categoria: categoria,
@@ -1448,15 +1448,15 @@ async function procesarArchivoCSV() {
                 return;
             }
 
-            // Registrar cada categoría única de forma segura
+            // 1. Registrar o verificar cada categoría única en la tabla 'categorias'
             for (const catNombre of categoriasSet) {
-                const { data: exi } = await db.from('categorias')
+                const { data: existente } = await db.from('categorias')
                     .select('id')
                     .eq('comercio_id', comercioActualId)
                     .ilike('nombre', catNombre)
                     .maybeSingle();
 
-                if (!exi) {
+                if (!existente) {
                     await db.from('categorias').insert([{ 
                         user_id: usuarioActual ? usuarioActual.id : null, 
                         comercio_id: comercioActualId, 
@@ -1465,7 +1465,7 @@ async function procesarArchivoCSV() {
                 }
             }
 
-            // Insertar productos
+            // 2. Insertar los productos en la tabla 'productos'
             const { error } = await db.from('productos').insert(nuevosProductos);
 
             if (error) {
