@@ -463,13 +463,26 @@ header h1 {
         position: absolute;
         left: 0;
         top: 0;
-        width: 100%;
-        max-width: 80mm; /* Tamaño estándar de papel térmico */
-        padding: 10px;
+        padding: 5px;
         font-family: 'Courier New', Courier, monospace;
         font-size: 12px;
         color: #000;
     }
+    
+    /* Anchos dinámicos según tiquetera */
+    #ticket-impresion.formato-58mm {
+        width: 48mm;
+        font-size: 11px;
+    }
+    #ticket-impresion.formato-80mm {
+        width: 72mm;
+        font-size: 13px;
+    }
+    #ticket-impresion.formato-a4 {
+        width: 100%;
+        font-size: 14px;
+    }
+
     .no-print {
         display: none !important;
     }
