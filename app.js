@@ -482,6 +482,7 @@ function cambiarPestaña(tab) {
     } else if (tab === 'stock') {
         document.getElementById('seccion-stock').classList.add('activa');
         document.getElementById('btn-tab-stock').classList.add('activo');
+        cargarCategorias(); // Asegurar categorías frescas al entrar a stock / aumento masivo
     } else if (tab === 'historial') {
         document.getElementById('seccion-historial').classList.add('activa');
         document.getElementById('btn-tab-historial').classList.add('activo');
@@ -591,24 +592,18 @@ async function cambiarEstadoComercio(idComercio, nuevoEstado) {
     cargarTablaAdmin();
 }
 
-/* CARGA Y RENDERIZADO DE PRODUCTOS Y FAVORITOS */
+/* CARGA Y RENDERIZADO DE CATEGORÍAS Y PRODUCTOS */
 async function cargarCategorias() {
     if (!comercioActualId) return;
     const { data } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
 
     categoriasGlobales = data || [];
     
-    const catsEnProductos = [...new Set(productosGlobales.map(p => p.categoria || 'General'))];
-    for (const catNombre of catsEnProductos) {
-        const existe = categoriasGlobales.find(c => c.nombre.toLowerCase() === catNombre.toLowerCase());
-        if (!existe) {
-            await db.from('categorias').insert([{ user_id: usuarioActual.id, comercio_id: comercioActualId, nombre: catNombre }]);
-        }
-    }
-
-    if (catsEnProductos.length > 0) {
-        const { data: dataActualizada } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
-        categoriasGlobales = dataActualizada || categoriasGlobales;
+    // Asegurar que exista al menos 'General'
+    if (categoriasGlobales.length === 0) {
+        await db.from('categorias').insert([{ user_id: usuarioActual ? usuarioActual.id : null, comercio_id: comercioActualId, nombre: 'General' }]);
+        const { data: resNueva } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
+        categoriasGlobales = resNueva || [];
     }
 
     poblarSelectoresCategorias(categoriasGlobales);
@@ -617,6 +612,7 @@ async function cargarCategorias() {
 function poblarSelectoresCategorias(lista) {
     const selectProd = document.getElementById('p-categoria-select');
     if (selectProd) {
+        const valorActual = selectProd.value;
         selectProd.innerHTML = '';
         lista.forEach(cat => {
             const opt = document.createElement('option');
@@ -626,11 +622,14 @@ function poblarSelectoresCategorias(lista) {
         });
         if (lista.length === 0) {
             selectProd.innerHTML = '<option value="General">General</option>';
+        } else if (valorActual) {
+            selectProd.value = valorActual;
         }
     }
 
     const selectAumento = document.getElementById('aumento-categoria');
     if (selectAumento) {
+        const valorActualAumento = selectAumento.value;
         selectAumento.innerHTML = '<option value="">Todas las categorías</option>';
         lista.forEach(cat => {
             const opt = document.createElement('option');
@@ -638,6 +637,7 @@ function poblarSelectoresCategorias(lista) {
             opt.innerText = cat.nombre;
             selectAumento.appendChild(opt);
         });
+        if (valorActualAumento) selectAumento.value = valorActualAumento;
     }
 }
 
@@ -646,12 +646,31 @@ async function cargarProductos() {
     const { data } = await db.from('productos').select('*').eq('comercio_id', comercioActualId).order('id', { ascending: true });
 
     productosGlobales = data || [];
+    
+    // Auto-registrar categorías provenientes de productos importados si no existen en la tabla categorias
+    const catsEnProductos = [...new Set(productosGlobales.map(p => p.categoria || 'General'))];
+    let huboNuevas = false;
+    for (const catNombre of catsEnProductos) {
+        const existe = categoriasGlobales.find(c => c.nombre.toLowerCase() === catNombre.toLowerCase());
+        if (!existe && catNombre) {
+            await db.from('categorias').insert([{ user_id: usuarioActual ? usuarioActual.id : null, comercio_id: comercioActualId, nombre: catNombre }]);
+            huboNuevas = true;
+        }
+    }
+
+    if (huboNuevas) {
+        const { data: dataActualizada } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
+        categoriasGlobales = dataActualizada || categoriasGlobales;
+    }
+
+    poblarSelectoresCategorias(categoriasGlobales);
     renderizarFavoritos(productosGlobales);
     renderizarTablaStock(productosGlobales);
 }
 
 function renderizarFavoritos(lista) {
     const contenedor = document.getElementById('contenedor-favoritos');
+    if (!contenedor) return;
     contenedor.innerHTML = '';
 
     const favoritos = lista.filter(p => p.es_favorito === true);
@@ -765,6 +784,7 @@ function agregarAlCarrito(producto, cantidad = 1) {
 
 function actualizarCarritoUI() {
     const tbody = document.getElementById('carrito-items-body');
+    if (!tbody) return;
     tbody.innerHTML = '';
     totalVentaActual = 0;
 
@@ -1131,7 +1151,8 @@ function actualizarTotalesCaja(total, efectivo, qr, transf) {
 }
 
 /* MODALES PRODUCTO */
-function abrirModalCrear() {
+async function abrirModalCrear() {
+    await cargarCategorias();
     document.getElementById('modal-titulo-prod').innerText = 'Nuevo Producto';
     document.getElementById('p-id').value = '';
     document.getElementById('p-nombre').value = '';
@@ -1148,7 +1169,8 @@ function abrirModalCrear() {
     document.getElementById('modal-producto').style.display = 'flex';
 }
 
-function abrirModalEditar(id) {
+async function abrirModalEditar(id) {
+    await cargarCategorias();
     const prod = productosGlobales.find(p => p.id === id);
     if (!prod) return;
 
@@ -1228,13 +1250,14 @@ async function eliminarProducto(id) {
         if (error) alert("Error al eliminar.");
         else {
             alert("Producto eliminado.");
-            cargarProductos();
+            await cargarProductos();
         }
     }
 }
 
 /* CATEGORÍAS */
-function abrirModalCategorias() {
+async function abrirModalCategorias() {
+    await cargarCategorias();
     renderizarListaCategoriasModal();
     document.getElementById('modal-categorias').style.display = 'flex';
 }
@@ -1245,7 +1268,13 @@ function cerrarModalCategorias() {
 
 function renderizarListaCategoriasModal() {
     const listaUI = document.getElementById('lista-categorias-modal');
+    if (!listaUI) return;
     listaUI.innerHTML = '';
+
+    if (categoriasGlobales.length === 0) {
+        listaUI.innerHTML = '<li style="padding:10px; text-align:center; color:#888;">No hay categorías creadas.</li>';
+        return;
+    }
 
     categoriasGlobales.forEach(cat => {
         const li = document.createElement('li');
