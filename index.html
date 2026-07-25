@@ -233,17 +233,18 @@
         <section id="seccion-vendedores" class="seccion">
             <div class="modulo-stock">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                    <h2>👥 Gestión de Vendedores / Cajeros</h2>
-                    <button class="btn-crear" onclick="abrirModalVendedor()">➕ Crear Vendedor con PIN</button>
+                    <h2>👥 Gestión de Vendedores y Permisos</h2>
+                    <button class="btn-crear" onclick="abrirModalVendedor()">➕ Crear Vendedor</button>
                 </div>
-                <p style="color:#666; font-size:14px; margin-bottom:15px;">Creá a tus empleados asignándoles un nombre y un PIN rápido para que inicien su turno.</p>
+                <p style="color:#666; font-size:14px; margin-bottom:15px;">Configurá los módulos que permitís ver a cada vendedor asignándole un PIN de acceso.</p>
 
                 <div class="tabla-contenedor">
                     <table class="tabla-stock">
                         <thead>
                             <tr>
                                 <th>Nombre del Vendedor</th>
-                                <th>PIN de Acceso</th>
+                                <th>Permisos Habilitados</th>
+                                <th>PIN</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -253,7 +254,7 @@
             </div>
         </section>
 
-        <!-- SECCIÓN PANEL ADMIN (Exclusivo Super Admin) -->
+        <!-- SECCIÓN PANEL ADMIN -->
         <section id="seccion-admin" class="seccion">
             <div class="modulo-stock">
                 <h2>👑 Panel de Administración SaaS</h2>
@@ -277,12 +278,35 @@
 
     </div>
 
-    <!-- Modales -->
+    <!-- Modal Crear/Editar Vendedor con Permisos -->
     <div id="modal-vendedor" class="modal no-print">
-        <div class="modal-contenido" style="max-width:380px;">
-            <h2>➕ Nuevo Vendedor</h2>
-            <input type="text" id="vend-nombre" placeholder="Nombre (Ej: Juan)">
-            <input type="password" id="vend-pin" maxlength="6" placeholder="PIN Numérico (Ej: 1234)">
+        <div class="modal-contenido" style="max-width:420px;">
+            <h2 id="modal-vendedor-titulo">➕ Nuevo Vendedor</h2>
+            <input type="hidden" id="vend-id">
+            
+            <label style="font-size:12px; font-weight:bold; color:#666;">NOMBRE Y APELLIDO:</label>
+            <input type="text" id="vend-nombre" placeholder="Ej: Vendedor1">
+            
+            <label style="font-size:12px; font-weight:bold; color:#666;">PIN DE ACCESO (4-6 dígitos):</label>
+            <input type="password" id="vend-pin" maxlength="6" placeholder="Ej: 1234">
+
+            <div style="background:#f8f9fa; border:1px solid #e2e8f0; padding:12px; border-radius:6px; margin:15px 0;">
+                <strong style="display:block; margin-bottom:8px; font-size:13px; color:#334155;">🔑 Módulos Permitidos para este usuario:</strong>
+                
+                <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer; margin-bottom:6px;">
+                    <input type="checkbox" id="chk-perm-ventas" checked disabled> 🛒 Punto de Venta (Inamovible)
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer; margin-bottom:6px;">
+                    <input type="checkbox" id="chk-perm-stock"> 📦 Control de Stock
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer; margin-bottom:6px;">
+                    <input type="checkbox" id="chk-perm-historial"> 📊 Historial / Cierre de Caja
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+                    <input type="checkbox" id="chk-perm-vendedores"> 👥 Gestión de Vendedores
+                </label>
+            </div>
+
             <div class="modal-acciones">
                 <button class="btn-guardar" onclick="guardarVendedorNuevo()">Guardar Vendedor</button>
                 <button class="btn-cancelar" onclick="cerrarModalVendedor()">Cancelar</button>
