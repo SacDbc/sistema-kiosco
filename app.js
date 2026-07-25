@@ -4,9 +4,11 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let usuarioActual = null;
 let perfilUsuario = null;
+let comercioActualId = null; // ID del comercio asociado a los datos
 let productosGlobales = [];
 let categoriasGlobales = [];
 let ventasGlobales = [];
+let comerciosGlobales = [];
 let carrito = [];
 let medioPagoSeleccionado = 'Efectivo';
 let totalVentaActual = 0;
@@ -19,7 +21,7 @@ let configComercio = {
     formato: localStorage.getItem('cfg_formato') || '80mm'
 };
 
-// COMPROBACIÓN DE SESIÓN Y VERIFICACIÓN DE SUSCRIPCIÓN
+// COMPROBACIÓN DE SESIÓN Y JERARQUÍA DE ROLES
 db.auth.onAuthStateChange(async (event, session) => {
     if (session) {
         usuarioActual = session.user;
@@ -34,41 +36,89 @@ db.auth.onAuthStateChange(async (event, session) => {
 });
 
 async function verificarOcrearPerfil(user) {
-    let { data: perfil, error } = await db.from('perfiles').select('*').eq('user_id', user.id).single();
+    let { data: perfil } = await db.from('perfiles').select('*').eq('user_id', user.id).single();
 
     if (!perfil) {
-        // Si recién se registra, creamos su perfil
-        const nuevoPerfil = {
+        // Si no existe, crear perfil por defecto
+        const { data: creado } = await db.from('perfiles').insert([{
             user_id: user.id,
             email: user.email,
-            nombre_comercio: 'Mi Kiosco',
-            es_admin: false,
-            estado_suscripcion: 'activo'
-        };
-        const { data: creado } = await db.from('perfiles').insert([nuevoPerfil]).select().single();
+            rol: 'dueno'
+        }]).select().single();
         perfil = creado;
     }
 
     perfilUsuario = perfil;
 
-    // Verificar si la cuenta está activa
-    if (perfilUsuario.estado_suscripcion !== 'activo' && !perfilUsuario.es_admin) {
+    // A) SI ES SUPER ADMIN (TÚ)
+    if (perfilUsuario.rol === 'super_admin') {
+        document.getElementById('pantalla-login').style.display = 'none';
+        document.getElementById('pantalla-bloqueo').style.display = 'none';
+        document.getElementById('app-principal').style.display = 'block';
+
+        // Ocultar Punto de Venta para Super Admin
+        document.getElementById('btn-tab-ventas').style.display = 'none';
+        document.getElementById('btn-tab-vendedores').style.display = 'none';
+        document.getElementById('btn-tab-admin').style.display = 'inline-block';
+        document.getElementById('selector-soporte-admin').style.display = 'block';
+
+        await cargarComerciosSoporte();
+        cambiarPestaña('admin');
+        return;
+    }
+
+    // B) SI ES DUEÑO O VENDEDOR
+    let comercio;
+    if (perfilUsuario.comercio_id) {
+        let { data: c } = await db.from('comercios').select('*').eq('id', perfilUsuario.comercio_id).single();
+        comercio = c;
+    }
+
+    if (!comercio && perfilUsuario.rol === 'dueno') {
+        // Crear comercio inicial si no tenía
+        const nombreLocal = localStorage.getItem('temp_nombre_comercio') || 'Mi Kiosco';
+        const { data: cNuevo } = await db.from('comercios').insert([{
+            nombre_comercio: nombreLocal,
+            dueno_id: user.id,
+            estado_suscripcion: 'activo'
+        }]).select().single();
+
+        comercio = cNuevo;
+        await db.from('perfiles').update({ comercio_id: comercio.id }).eq('id', perfilUsuario.id);
+    }
+
+    if (comercio.estado_suscripcion !== 'activo') {
         document.getElementById('pantalla-login').style.display = 'none';
         document.getElementById('pantalla-bloqueo').style.display = 'flex';
         document.getElementById('app-principal').style.display = 'none';
         return;
     }
 
-    // Si está activa, mostrar App
+    comercioActualId = comercio.id;
+    configComercio.nombre = comercio.nombre_comercio;
+
     document.getElementById('pantalla-login').style.display = 'none';
     document.getElementById('pantalla-bloqueo').style.display = 'none';
     document.getElementById('app-principal').style.display = 'block';
 
-    // Mostrar Botón Admin si es Administrador del SaaS
-    if (perfilUsuario.es_admin) {
-        document.getElementById('btn-tab-admin').style.display = 'inline-block';
-    } else {
+    // Ajustes según Rol
+    if (perfilUsuario.rol === 'vendedor') {
+        // Vendedor solo ve Punto de Venta
+        document.getElementById('btn-tab-ventas').style.display = 'inline-block';
+        document.getElementById('btn-tab-stock').style.display = 'none';
+        document.getElementById('btn-tab-historial').style.display = 'none';
+        document.getElementById('btn-tab-vendedores').style.display = 'none';
         document.getElementById('btn-tab-admin').style.display = 'none';
+        document.getElementById('btn-tab-config').style.display = 'none';
+        cambiarPestaña('ventas');
+    } else {
+        // Dueño ve todo
+        document.getElementById('btn-tab-ventas').style.display = 'inline-block';
+        document.getElementById('btn-tab-stock').style.display = 'inline-block';
+        document.getElementById('btn-tab-historial').style.display = 'inline-block';
+        document.getElementById('btn-tab-vendedores').style.display = 'inline-block';
+        document.getElementById('btn-tab-admin').style.display = 'none';
+        cambiarPestaña('ventas');
     }
 
     cargarTodo();
@@ -78,37 +128,143 @@ function toggleModoAuth(e) {
     e.preventDefault();
     modoRegistro = !modoRegistro;
     
-    document.getElementById('login-subtitulo').innerText = modoRegistro ? 'Creá tu cuenta gratis' : 'Ingresá a tu cuenta';
-    document.getElementById('btn-auth-submit').innerText = modoRegistro ? 'Registrarme' : 'Ingresar';
-    document.getElementById('text-toggle-auth').innerText = modoRegistro ? '¿Ya tenés cuenta?' : '¿No tenés cuenta?';
+    document.getElementById('login-subtitulo').innerText = modoRegistro ? 'Registrá tu Comercio gratis' : 'Ingresá a tu cuenta';
+    document.getElementById('btn-auth-submit').innerText = modoRegistro ? 'Registrar Comercio' : 'Ingresar';
+    document.getElementById('text-toggle-auth').innerText = modoRegistro ? '¿Ya tenés cuenta?' : '¿Registrar nuevo comercio?';
     document.getElementById('link-toggle-auth').innerText = modoRegistro ? 'Ingresá acá' : 'Registrate acá';
+    document.getElementById('bloque-nombre-comercio').style.display = modoRegistro ? 'block' : 'none';
 }
 
 async function manejarAuth(e) {
     e.preventDefault();
     const email = document.getElementById('auth-email').value.trim();
     const password = document.getElementById('auth-password').value.trim();
+    const nombreComercio = document.getElementById('auth-comercio').value.trim();
     const btn = document.getElementById('btn-auth-submit');
 
     btn.disabled = true;
     btn.innerText = "Procesando...";
 
     if (modoRegistro) {
+        if (!nombreComercio) {
+            alert("Ingresá el nombre de tu comercio.");
+            btn.disabled = false;
+            return;
+        }
+        localStorage.setItem('temp_nombre_comercio', nombreComercio);
         const { error } = await db.auth.signUp({ email, password });
         if (error) alert("Error al registrar: " + error.message);
-        else alert("¡Registro exitoso! Ya podés ingresar con tu cuenta.");
+        else alert("¡Registro exitoso! Ya podés ingresar.");
     } else {
         const { error } = await db.auth.signInWithPassword({ email, password });
         if (error) alert("Credenciales incorrectas: " + error.message);
     }
 
     btn.disabled = false;
-    btn.innerText = modoRegistro ? 'Registrarme' : 'Ingresar';
+    btn.innerText = modoRegistro ? 'Registrar Comercio' : 'Ingresar';
 }
 
 async function cerrarSesion() {
     await db.auth.signOut();
     location.reload();
+}
+
+/* MODAL Y GESTIÓN DE VENDEDORES (Para el Dueño) */
+function abrirModalVendedor() {
+    document.getElementById('vend-email').value = '';
+    document.getElementById('vend-password').value = '';
+    document.getElementById('modal-vendedor').style.display = 'flex';
+}
+
+function cerrarModalVendedor() {
+    document.getElementById('modal-vendedor').style.display = 'none';
+}
+
+async function crearVendedor() {
+    const email = document.getElementById('vend-email').value.trim();
+    const password = document.getElementById('vend-password').value.trim();
+
+    if (!email || !password) return alert("Completá email y contraseña.");
+
+    // Registro secundario
+    const { data: authVend, error } = await db.auth.signUp({ email, password });
+    if (error) return alert("Error al crear vendedor: " + error.message);
+
+    if (authVend.user) {
+        await db.from('perfiles').insert([{
+            user_id: authVend.user.id,
+            email: email,
+            rol: 'vendedor',
+            comercio_id: comercioActualId
+        }]);
+
+        alert("¡Vendedor creado con éxito!");
+        cerrarModalVendedor();
+        cargarTablaVendedores();
+    }
+}
+
+async function cargarTablaVendedores() {
+    const tbody = document.getElementById('tabla-body-vendedores');
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Cargando vendedores...</td></tr>';
+
+    const { data: vends } = await db.from('perfiles').select('*').eq('comercio_id', comercioActualId).eq('rol', 'vendedor');
+
+    tbody.innerHTML = '';
+    if (!vends || vends.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#888;">No tenés vendedores registrados.</td></tr>';
+        return;
+    }
+
+    vends.forEach(v => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${v.email}</strong></td>
+            <td><span style="background:#e9ecef; padding:3px 7px; border-radius:4px; font-size:12px;">Cajero / Vendedor</span></td>
+            <td>
+                <button onclick="eliminarVendedor(${v.id})" style="background:#dc3545; color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-weight:bold;">🗑️ Dar de Baja</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+async function eliminarVendedor(id) {
+    if (confirm("¿Dar de baja a este vendedor?")) {
+        await db.from('perfiles').delete().eq('id', id);
+        cargarTablaVendedores();
+    }
+}
+
+/* MODULO MODO SOPORTE SUPER ADMIN */
+async function cargarComerciosSoporte() {
+    const select = document.getElementById('select-comercio-soporte');
+    select.innerHTML = '';
+
+    const { data: list } = await db.from('comercios').select('*').order('nombre_comercio', { ascending: true });
+    comerciosGlobales = list || [];
+
+    comerciosGlobales.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.innerText = c.nombre_comercio;
+        select.appendChild(opt);
+    });
+
+    if (comerciosGlobales.length > 0) {
+        comercioActualId = comerciosGlobales[0].id;
+        configComercio.nombre = comerciosGlobales[0].nombre_comercio;
+    }
+}
+
+function cambiarComercioSoporte() {
+    const selId = Number(document.getElementById('select-comercio-soporte').value);
+    comercioActualId = selId;
+    const comm = comerciosGlobales.find(c => c.id === selId);
+    if (comm) configComercio.nombre = comm.nombre_comercio;
+
+    aplicarConfiguracionUI();
+    cargarTodo();
 }
 
 function cambiarPestaña(tab) {
@@ -126,6 +282,10 @@ function cambiarPestaña(tab) {
         document.getElementById('seccion-historial').classList.add('activa');
         document.getElementById('btn-tab-historial').classList.add('activo');
         cargarHistorialVentas();
+    } else if (tab === 'vendedores') {
+        document.getElementById('seccion-vendedores').classList.add('activa');
+        document.getElementById('btn-tab-vendedores').classList.add('activo');
+        cargarTablaVendedores();
     } else if (tab === 'admin') {
         document.getElementById('seccion-admin').classList.add('activa');
         document.getElementById('btn-tab-admin').classList.add('activo');
@@ -161,6 +321,10 @@ function guardarConfiguracion() {
     localStorage.setItem('cfg_direccion', direccion);
     localStorage.setItem('cfg_formato', formato);
 
+    if (perfilUsuario && perfilUsuario.rol === 'dueno') {
+        db.from('comercios').update({ nombre_comercio: nombre }).eq('id', comercioActualId);
+    }
+
     aplicarConfiguracionUI();
     cerrarModalConfig();
     alert("¡Configuración guardada correctamente!");
@@ -173,49 +337,48 @@ function aplicarConfiguracionUI() {
     }
 }
 
-/* LÓGICA EXCLUSIVA DEL PANEL ADMIN (Dueño del SaaS) */
 async function cargarTablaAdmin() {
     const tbody = document.getElementById('tabla-body-admin');
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando clientes...</td></tr>';
 
-    const { data: perfiles, error } = await db.from('perfiles').select('*').order('id', { ascending: true });
-    if (error) return;
+    const { data: comercios } = await db.from('comercios').select('*').order('id', { ascending: true });
+    if (!comercios) return;
 
     tbody.innerHTML = '';
-    perfiles.forEach(p => {
-        const esActivo = p.estado_suscripcion === 'activo';
+    for (const c of comercios) {
+        const esActivo = c.estado_suscripcion === 'activo';
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><strong>${p.email}</strong></td>
-            <td>${p.nombre_comercio || 'Kiosco'}</td>
+            <td><strong>${c.nombre_comercio}</strong></td>
+            <td><small>${c.dueno_id}</small></td>
             <td>
                 <span style="background:${esActivo ? '#d4edda' : '#f8d7da'}; color:${esActivo ? '#155724' : '#721c24'}; padding:3px 8px; border-radius:4px; font-weight:bold; font-size:12px;">
                     ${esActivo ? '🟢 ACTIVO' : '🔴 INACTIVO/VENCIDO'}
                 </span>
             </td>
-            <td><small style="color:#666;">${new Date(p.fecha_vencimiento).toLocaleDateString('es-AR')}</small></td>
+            <td><small style="color:#666;">${new Date(c.fecha_vencimiento).toLocaleDateString('es-AR')}</small></td>
             <td>
-                <button onclick="cambiarEstadoCliente(${p.id}, '${esActivo ? 'vencido' : 'activo'}')" style="background:${esActivo ? '#dc3545' : '#28a745'}; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold;">
+                <button onclick="cambiarEstadoComercio(${c.id}, '${esActivo ? 'vencido' : 'activo'}')" style="background:${esActivo ? '#dc3545' : '#28a745'}; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold;">
                     ${esActivo ? '🚫 Suspender' : '⚡ Activar Acceso'}
                 </button>
             </td>
         `;
         tbody.appendChild(tr);
-    });
+    }
 }
 
-async function cambiarEstadoCliente(idPerfil, nuevoEstado) {
-    await db.from('perfiles').update({ estado_suscripcion: nuevoEstado }).eq('id', idPerfil);
-    alert(`Estado del cliente actualizado a: ${nuevoEstado.toUpperCase()}`);
+async function cambiarEstadoComercio(idComercio, nuevoEstado) {
+    await db.from('comercios').update({ estado_suscripcion: nuevoEstado }).eq('id', idComercio);
+    alert(`Estado del comercio actualizado a: ${nuevoEstado.toUpperCase()}`);
     cargarTablaAdmin();
 }
 
-/* CARGA FILTRADA POR USUARIO */
+/* CARGA FILTRADA POR COMERCIO ID */
 async function cargarCategorias() {
-    const { data, error } = await db.from('categorias').select('*').eq('user_id', usuarioActual.id).order('nombre', { ascending: true });
-    if (error) return console.error(error);
+    if (!comercioActualId) return;
+    const { data } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
 
-    categoriasGlobales = data;
+    categoriasGlobales = data || [];
     poblarSelectoresCategorias(categoriasGlobales);
 }
 
@@ -242,10 +405,10 @@ function poblarSelectoresCategorias(lista) {
 }
 
 async function cargarProductos() {
-    const { data, error } = await db.from('productos').select('*').eq('user_id', usuarioActual.id).order('id', { ascending: true });
-    if (error) return console.error(error);
+    if (!comercioActualId) return;
+    const { data } = await db.from('productos').select('*').eq('comercio_id', comercioActualId).order('id', { ascending: true });
 
-    productosGlobales = data;
+    productosGlobales = data || [];
     renderizarFavoritos(productosGlobales);
     renderizarTablaStock(productosGlobales);
 }
@@ -478,6 +641,7 @@ async function confirmarVentaFinal() {
 
         const registroVenta = {
             user_id: usuarioActual.id,
+            comercio_id: comercioActualId,
             monto_total: totalVentaActual,
             medio_pago: medioPagoSeleccionado,
             items: carrito.map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio }))
@@ -563,10 +727,11 @@ async function cargarHistorialVentas() {
     const tbody = document.getElementById('tabla-body-historial');
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando historial...</td></tr>';
 
-    const { data, error } = await db.from('ventas').select('*').eq('user_id', usuarioActual.id).order('id', { ascending: false }).limit(50);
-    if (error) return;
+    if (!comercioActualId) return;
 
-    ventasGlobales = data;
+    const { data } = await db.from('ventas').select('*').eq('comercio_id', comercioActualId).order('id', { ascending: false }).limit(50);
+
+    ventasGlobales = data || [];
     renderizarHistorial(ventasGlobales);
 }
 
@@ -770,6 +935,7 @@ async function guardarProducto() {
 
     const datos = {
         user_id: usuarioActual.id,
+        comercio_id: comercioActualId,
         nombre,
         categoria,
         precio,
@@ -838,7 +1004,7 @@ async function crearCategoria() {
     const nombre = document.getElementById('nueva-cat-nombre').value.trim();
     if (!nombre) return alert("Ingresá un nombre de categoría.");
 
-    const { error } = await db.from('categorias').insert([{ user_id: usuarioActual.id, nombre }]);
+    const { error } = await db.from('categorias').insert([{ user_id: usuarioActual.id, comercio_id: comercioActualId, nombre }]);
 
     if (error) {
         alert("La categoría ya existe o surgió un error.");
@@ -940,7 +1106,7 @@ async function procesarArchivoCSV() {
                     const codigo = columnas[4]?.trim() || null;
 
                     if (nombre && !isNaN(precio)) {
-                        nuevosProductos.push({ user_id: usuarioActual.id, nombre, categoria, precio, stock, codigo_barras: codigo, stock_minimo: 3 });
+                        nuevosProductos.push({ user_id: usuarioActual.id, comercio_id: comercioActualId, nombre, categoria, precio, stock, codigo_barras: codigo, stock_minimo: 3 });
                     }
                 }
             }
