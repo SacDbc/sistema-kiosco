@@ -482,7 +482,7 @@ function cambiarPestaña(tab) {
     } else if (tab === 'stock') {
         document.getElementById('seccion-stock').classList.add('activa');
         document.getElementById('btn-tab-stock').classList.add('activo');
-        cargarCategorias(); // Asegurar categorías frescas al entrar a stock / aumento masivo
+        cargarCategorias(); 
     } else if (tab === 'historial') {
         document.getElementById('seccion-historial').classList.add('activa');
         document.getElementById('btn-tab-historial').classList.add('activo');
@@ -592,24 +592,36 @@ async function cambiarEstadoComercio(idComercio, nuevoEstado) {
     cargarTablaAdmin();
 }
 
-/* CARGA Y RENDERIZADO DE CATEGORÍAS Y PRODUCTOS */
+/* CARGA Y RENDERIZADO ROBUSTO DE CATEGORÍAS */
 async function cargarCategorias() {
     if (!comercioActualId) return;
-    const { data } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
+
+    // 1. Traer categorías de la base de datos
+    const { data, error } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
+
+    if (error) {
+        console.error("Error al cargar categorías:", error);
+    }
 
     categoriasGlobales = data || [];
-    
-    // Asegurar que exista al menos 'General'
+
+    // 2. Si no hay ninguna, creamos "General" por defecto en la BD
     if (categoriasGlobales.length === 0) {
-        await db.from('categorias').insert([{ user_id: usuarioActual ? usuarioActual.id : null, comercio_id: comercioActualId, nombre: 'General' }]);
+        await db.from('categorias').insert([{ 
+            user_id: usuarioActual ? usuarioActual.id : null, 
+            comercio_id: comercioActualId, 
+            nombre: 'General' 
+        }]);
         const { data: resNueva } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
         categoriasGlobales = resNueva || [];
     }
 
+    // 3. Poblar todos los selects visuales de la aplicación inmediatamente
     poblarSelectoresCategorias(categoriasGlobales);
 }
 
 function poblarSelectoresCategorias(lista) {
+    // Select de Nuevo/Editar Producto
     const selectProd = document.getElementById('p-categoria-select');
     if (selectProd) {
         const valorActual = selectProd.value;
@@ -627,6 +639,7 @@ function poblarSelectoresCategorias(lista) {
         }
     }
 
+    // Select del Aumento Masivo en Stock
     const selectAumento = document.getElementById('aumento-categoria');
     if (selectAumento) {
         const valorActualAumento = selectAumento.value;
@@ -647,13 +660,17 @@ async function cargarProductos() {
 
     productosGlobales = data || [];
     
-    // Auto-registrar categorías provenientes de productos importados si no existen en la tabla categorias
+    // Auto-registrar en la tabla categorías aquellas que vienen dentro de los productos importados pero no están creadas
     const catsEnProductos = [...new Set(productosGlobales.map(p => p.categoria || 'General'))];
     let huboNuevas = false;
     for (const catNombre of catsEnProductos) {
         const existe = categoriasGlobales.find(c => c.nombre.toLowerCase() === catNombre.toLowerCase());
         if (!existe && catNombre) {
-            await db.from('categorias').insert([{ user_id: usuarioActual ? usuarioActual.id : null, comercio_id: comercioActualId, nombre: catNombre }]);
+            await db.from('categorias').insert([{ 
+                user_id: usuarioActual ? usuarioActual.id : null, 
+                comercio_id: comercioActualId, 
+                nombre: catNombre 
+            }]);
             huboNuevas = true;
         }
     }
@@ -1156,7 +1173,10 @@ async function abrirModalCrear() {
     document.getElementById('modal-titulo-prod').innerText = 'Nuevo Producto';
     document.getElementById('p-id').value = '';
     document.getElementById('p-nombre').value = '';
-    document.getElementById('p-categoria-select').value = 'General';
+    
+    const selectCat = document.getElementById('p-categoria-select');
+    if (selectCat && selectCat.options.length > 0) selectCat.selectedIndex = 0;
+
     document.getElementById('p-precio').value = '';
     document.getElementById('p-stock').value = '';
     document.getElementById('p-stock-minimo').value = '3';
@@ -1177,7 +1197,13 @@ async function abrirModalEditar(id) {
     document.getElementById('modal-titulo-prod').innerText = 'Editar Producto';
     document.getElementById('p-id').value = prod.id;
     document.getElementById('p-nombre').value = prod.nombre;
-    document.getElementById('p-categoria-select').value = prod.categoria || 'General';
+    
+    // Seleccionar la categoría exacta del producto editado
+    const selectCat = document.getElementById('p-categoria-select');
+    if (selectCat) {
+        selectCat.value = prod.categoria || 'General';
+    }
+
     document.getElementById('p-precio').value = prod.precio;
     document.getElementById('p-stock').value = prod.stock;
     document.getElementById('p-stock-minimo').value = prod.stock_minimo !== undefined ? prod.stock_minimo : 3;
@@ -1291,7 +1317,11 @@ async function crearCategoria() {
     const nombre = document.getElementById('nueva-cat-nombre').value.trim();
     if (!nombre) return alert("Ingresá un nombre de categoría.");
 
-    const { error } = await db.from('categorias').insert([{ user_id: usuarioActual.id, comercio_id: comercioActualId, nombre }]);
+    const { error } = await db.from('categorias').insert([{ 
+        user_id: usuarioActual ? usuarioActual.id : null, 
+        comercio_id: comercioActualId, 
+        nombre 
+    }]);
 
     if (error) {
         alert("La categoría ya existe o surgió un error.");
