@@ -5,7 +5,9 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let usuarioActual = null;
 let perfilUsuario = null;
 let comercioActualId = null;
+let comercioObjeto = null;
 let cajeroActivoNombre = 'Dueño';
+let cajeroSeleccionadoTemp = null;
 
 let productosGlobales = [];
 let categoriasGlobales = [];
@@ -21,10 +23,11 @@ let modoRegistro = false;
 let configComercio = {
     nombre: localStorage.getItem('cfg_nombre') || 'Kiosco En Línea',
     direccion: localStorage.getItem('cfg_direccion') || 'Atención al Cliente',
-    formato: localStorage.getItem('cfg_formato') || '80mm'
+    formato: localStorage.getItem('cfg_formato') || '80mm',
+    pinDueno: '0000'
 };
 
-// COMPROBACIÓN DE SESIÓN
+// SESIÓN
 db.auth.onAuthStateChange(async (event, session) => {
     if (session) {
         usuarioActual = session.user;
@@ -34,6 +37,7 @@ db.auth.onAuthStateChange(async (event, session) => {
         perfilUsuario = null;
         document.getElementById('pantalla-login').style.display = 'flex';
         document.getElementById('pantalla-bloqueo').style.display = 'none';
+        document.getElementById('pantalla-apertura-turno').style.display = 'none';
         document.getElementById('app-principal').style.display = 'none';
     }
 });
@@ -56,6 +60,7 @@ async function verificarOcrearPerfil(user) {
     if (perfilUsuario.rol === 'super_admin') {
         document.getElementById('pantalla-login').style.display = 'none';
         document.getElementById('pantalla-bloqueo').style.display = 'none';
+        document.getElementById('pantalla-apertura-turno').style.display = 'none';
         document.getElementById('app-principal').style.display = 'block';
 
         document.getElementById('btn-tab-ventas').style.display = 'none';
@@ -80,22 +85,34 @@ async function verificarOcrearPerfil(user) {
         const { data: cNuevo } = await db.from('comercios').insert([{
             nombre_comercio: nombreLocal,
             dueno_id: user.id,
-            estado_suscripcion: 'activo'
+            estado_suscripcion: 'pendiente'
         }]).select().single();
 
         comercio = cNuevo;
         await db.from('perfiles').update({ comercio_id: comercio.id }).eq('id', perfilUsuario.id);
     }
 
-    if (comercio.estado_suscripcion !== 'activo') {
+    comercioObjeto = comercio;
+    comercioActualId = comercio.id;
+    configComercio.nombre = comercio.nombre_comercio;
+    configComercio.pinDueno = comercio.pin_dueno || '0000';
+
+    // VERIFICAR ALTA DIRECTA/APROBACIÓN
+    if (comercio.estado_suscripcion === 'pendiente') {
         document.getElementById('pantalla-login').style.display = 'none';
         document.getElementById('pantalla-bloqueo').style.display = 'flex';
+        document.getElementById('titulo-bloqueo').innerText = "Cuenta Pendiente de Aprobación";
+        document.getElementById('mensaje-bloqueo').innerText = "Tu comercio fue registrado. Sergio / Administración habilitará tu acceso en breve.";
+        document.getElementById('app-principal').style.display = 'none';
+        return;
+    } else if (comercio.estado_suscripcion === 'vencido') {
+        document.getElementById('pantalla-login').style.display = 'none';
+        document.getElementById('pantalla-bloqueo').style.display = 'flex';
+        document.getElementById('titulo-bloqueo').innerText = "Suscripción Vencida";
+        document.getElementById('mensaje-bloqueo').innerText = "Tu cuenta se encuentra suspendida o vencida. Contactate con Administración.";
         document.getElementById('app-principal').style.display = 'none';
         return;
     }
-
-    comercioActualId = comercio.id;
-    configComercio.nombre = comercio.nombre_comercio;
 
     document.getElementById('pantalla-login').style.display = 'none';
     document.getElementById('pantalla-bloqueo').style.display = 'none';
@@ -107,8 +124,8 @@ async function verificarOcrearPerfil(user) {
     document.getElementById('btn-tab-vendedores').style.display = 'inline-block';
     document.getElementById('btn-tab-admin').style.display = 'none';
 
-    actualizarNombreCajeroUI();
-    cargarTodo();
+    await cargarTodo();
+    solicitarAperturaTurno();
 }
 
 function toggleModoAuth(e) {
@@ -141,7 +158,7 @@ async function manejarAuth(e) {
         localStorage.setItem('temp_nombre_comercio', nombreComercio);
         const { error } = await db.auth.signUp({ email, password });
         if (error) alert("Error al registrar: " + error.message);
-        else alert("¡Registro exitoso! Ya podés ingresar.");
+        else alert("¡Registro enviado! Administración te dará el alta en breve.");
     } else {
         const { error } = await db.auth.signInWithPassword({ email, password });
         if (error) alert("Credenciales incorrectas: " + error.message);
@@ -156,7 +173,88 @@ async function cerrarSesion() {
     location.reload();
 }
 
-/* GESTIÓN DE VENDEDORES Y CAMBIO DE CAJERO POR PIN */
+/* APERTURA DE TURNO Y BLOQUEO POR PIN */
+function solicitarAperturaTurno() {
+    renderizarBotonesAperturaTurno();
+    document.getElementById('bloque-ingreso-pin-apertura').style.display = 'none';
+    document.getElementById('pantalla-apertura-turno').style.display = 'flex';
+}
+
+function renderizarBotonesAperturaTurno() {
+    const contenedor = document.getElementById('grid-cajeros-apertura');
+    contenedor.innerHTML = '';
+
+    vendedoresGlobales.forEach(v => {
+        const btn = document.createElement('button');
+        btn.style.cssText = 'background:#f8f9fa; border:2px solid #007bff; padding:15px; border-radius:8px; font-size:16px; font-weight:bold; color:#007bff; cursor:pointer; text-align:center;';
+        btn.innerText = `👤 ${v.nombre}`;
+        btn.onclick = () => seleccionarCajeroParaPin(v);
+        contenedor.appendChild(btn);
+    });
+
+    if (vendedoresGlobales.length === 0) {
+        contenedor.innerHTML = '<div style="grid-column: span 2; color:#888; font-size:13px;">No hay vendedores registrados aún.<br>Podés entrar como Dueño.</div>';
+    }
+}
+
+function seleccionarCajeroParaPin(vendedor) {
+    cajeroSeleccionadoTemp = vendedor;
+    document.getElementById('label-cajero-seleccionado').innerText = `PIN de ${vendedor.nombre}:`;
+    document.getElementById('input-pin-apertura').value = '';
+    document.getElementById('bloque-ingreso-pin-apertura').style.display = 'block';
+    setTimeout(() => document.getElementById('input-pin-apertura').focus(), 100);
+}
+
+function cancelarSeleccionCajero() {
+    cajeroSeleccionadoTemp = null;
+    document.getElementById('bloque-ingreso-pin-apertura').style.display = 'none';
+}
+
+function confirmarIngresoTurno() {
+    const pin = document.getElementById('input-pin-apertura').value.trim();
+    if (cajeroSeleccionadoTemp && cajeroSeleccionadoTemp.pin === pin) {
+        cajeroActivoNombre = cajeroSeleccionadoTemp.nombre;
+        actualizarNombreCajeroUI();
+        document.getElementById('pantalla-apertura-turno').style.display = 'none';
+        cambiarPestaña('ventas');
+    } else {
+        alert("⚠️ PIN Incorrecto.");
+    }
+}
+
+function ingresarComoDuenoDirecto() {
+    const pin = prompt("Ingresá tu PIN de Dueño / Administrador:", "");
+    if (pin === configComercio.pinDueno) {
+        cajeroActivoNombre = 'Dueño';
+        actualizarNombreCajeroUI();
+        document.getElementById('pantalla-apertura-turno').style.display = 'none';
+        cambiarPestaña('ventas');
+    } else if (pin !== null) {
+        alert("⚠️ PIN de Dueño incorrecto.");
+    }
+}
+
+function intentarAccesoProtegido(tab) {
+    if (cajeroActivoNombre === 'Dueño' || perfilUsuario.rol === 'super_admin') {
+        if (tab === 'config') abrirModalConfig();
+        else cambiarPestaña(tab);
+    } else {
+        const pin = prompt(`🔒 Área protegida. Para ingresar a ${tab.toUpperCase()}, ingresá el PIN de Dueño:`, "");
+        if (pin === configComercio.pinDueno) {
+            if (tab === 'config') abrirModalConfig();
+            else cambiarPestaña(tab);
+        } else if (pin !== null) {
+            alert("⚠️ Acceso denegado. PIN de Dueño incorrecto.");
+        }
+    }
+}
+
+function actualizarNombreCajeroUI() {
+    const elem = document.getElementById('nombre-cajero-activo');
+    if (elem) elem.innerText = cajeroActivoNombre;
+}
+
+/* VENDEDORES */
 async function cargarVendedores() {
     if (!comercioActualId) return;
     const { data } = await db.from('vendedores').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
@@ -225,54 +323,7 @@ async function eliminarVendedor(id) {
     }
 }
 
-function abrirModalCambiarCajero() {
-    const select = document.getElementById('select-vendedor-pin');
-    select.innerHTML = '<option value="Dueño">Dueño / Administrador</option>';
-
-    vendedoresGlobales.forEach(v => {
-        const opt = document.createElement('option');
-        opt.value = v.nombre;
-        opt.innerText = v.nombre;
-        select.appendChild(opt);
-    });
-
-    document.getElementById('input-pin-cajero').value = '';
-    document.getElementById('modal-cambiar-cajero').style.display = 'flex';
-    setTimeout(() => document.getElementById('input-pin-cajero').focus(), 100);
-}
-
-function cerrarModalCambiarCajero() {
-    document.getElementById('modal-cambiar-cajero').style.display = 'none';
-}
-
-function confirmarCambioCajero() {
-    const seleccionado = document.getElementById('select-vendedor-pin').value;
-    const pinIngresado = document.getElementById('input-pin-cajero').value.trim();
-
-    if (seleccionado === 'Dueño') {
-        cajeroActivoNombre = 'Dueño';
-        actualizarNombreCajeroUI();
-        cerrarModalCambiarCajero();
-        return;
-    }
-
-    const vend = vendedoresGlobales.find(v => v.nombre === seleccionado);
-    if (vend && vend.pin === pinIngresado) {
-        cajeroActivoNombre = vend.nombre;
-        actualizarNombreCajeroUI();
-        cerrarModalCambiarCajero();
-        alert(`¡Turno activado para: ${vend.nombre}!`);
-    } else {
-        alert("⚠️ PIN incorrecto.");
-    }
-}
-
-function actualizarNombreCajeroUI() {
-    const elem = document.getElementById('nombre-cajero-activo');
-    if (elem) elem.innerText = cajeroActivoNombre;
-}
-
-/* NAVEGACIÓN */
+/* NAVEGACIÓN Y PANEL ADMIN */
 async function cargarComerciosSoporte() {
     const select = document.getElementById('select-comercio-soporte');
     select.innerHTML = '';
@@ -339,6 +390,7 @@ async function cargarTodo() {
 function abrirModalConfig() {
     document.getElementById('cfg-nombre-comercio').value = configComercio.nombre;
     document.getElementById('cfg-direccion').value = configComercio.direccion;
+    document.getElementById('cfg-pin-dueno').value = configComercio.pinDueno;
     document.getElementById('cfg-formato-impresora').value = configComercio.formato;
     document.getElementById('modal-config').style.display = 'flex';
 }
@@ -350,16 +402,17 @@ function cerrarModalConfig() {
 function guardarConfiguracion() {
     const nombre = document.getElementById('cfg-nombre-comercio').value.trim() || 'Kiosco En Línea';
     const direccion = document.getElementById('cfg-direccion').value.trim() || 'Atención al Cliente';
+    const pinDueno = document.getElementById('cfg-pin-dueno').value.trim() || '0000';
     const formato = document.getElementById('cfg-formato-impresora').value;
 
-    configComercio = { nombre, direccion, formato };
+    configComercio = { nombre, direccion, formato, pinDueno };
 
     localStorage.setItem('cfg_nombre', nombre);
     localStorage.setItem('cfg_direccion', direccion);
     localStorage.setItem('cfg_formato', formato);
 
     if (perfilUsuario && perfilUsuario.rol === 'dueno') {
-        db.from('comercios').update({ nombre_comercio: nombre }).eq('id', comercioActualId);
+        db.from('comercios').update({ nombre_comercio: nombre, pin_dueno: pinDueno }).eq('id', comercioActualId);
     }
 
     aplicarConfiguracionUI();
@@ -374,30 +427,41 @@ function aplicarConfiguracionUI() {
     }
 }
 
+/* ALTA DIRECTA / PANEL ADMIN */
 async function cargarTablaAdmin() {
     const tbody = document.getElementById('tabla-body-admin');
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando clientes...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Cargando clientes...</td></tr>';
 
     const { data: comercios } = await db.from('comercios').select('*').order('id', { ascending: true });
     if (!comercios) return;
 
     tbody.innerHTML = '';
     for (const c of comercios) {
-        const esActivo = c.estado_suscripcion === 'activo';
+        const estado = c.estado_suscripcion || 'pendiente';
+        let badgeStyle = '#ffc107'; // Pendiente amarillo
+        let badgeText = '⏳ PENDIENTE DE ALTA';
+
+        if (estado === 'activo') {
+            badgeStyle = '#28a745';
+            badgeText = '🟢 ACTIVO';
+        } else if (estado === 'vencido') {
+            badgeStyle = '#dc3545';
+            badgeText = '🔴 SUSPENDIDO / VENCIDO';
+        }
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><strong>${c.nombre_comercio}</strong></td>
             <td><small>${c.dueno_id}</small></td>
             <td>
-                <span style="background:${esActivo ? '#d4edda' : '#f8d7da'}; color:${esActivo ? '#155724' : '#721c24'}; padding:3px 8px; border-radius:4px; font-weight:bold; font-size:12px;">
-                    ${esActivo ? '🟢 ACTIVO' : '🔴 INACTIVO/VENCIDO'}
+                <span style="background:${badgeStyle}; color:white; padding:3px 8px; border-radius:4px; font-weight:bold; font-size:12px;">
+                    ${badgeText}
                 </span>
             </td>
-            <td><small style="color:#666;">${new Date(c.fecha_vencimiento).toLocaleDateString('es-AR')}</small></td>
             <td>
-                <button onclick="cambiarEstadoComercio(${c.id}, '${esActivo ? 'vencido' : 'activo'}')" style="background:${esActivo ? '#dc3545' : '#28a745'}; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold;">
-                    ${esActivo ? '🚫 Suspender' : '⚡ Activar Acceso'}
-                </button>
+                ${estado === 'pendiente' ? `<button onclick="cambiarEstadoComercio(${c.id}, 'activo')" style="background:#28a745; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:5px;">✅ Dar de Alta</button>` : ''}
+                ${estado === 'activo' ? `<button onclick="cambiarEstadoComercio(${c.id}, 'vencido')" style="background:#dc3545; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">🚫 Suspender</button>` : ''}
+                ${estado === 'vencido' ? `<button onclick="cambiarEstadoComercio(${c.id}, 'activo')" style="background:#007bff; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">⚡ Reactivar Acceso</button>` : ''}
             </td>
         `;
         tbody.appendChild(tr);
@@ -410,7 +474,7 @@ async function cambiarEstadoComercio(idComercio, nuevoEstado) {
     cargarTablaAdmin();
 }
 
-/* PRODUCTOS Y VENTAS CON SEGUIMIENTO DE VENDEDOR */
+/* OPERACIONES DE VENTA Y PRODUCTOS */
 async function cargarCategorias() {
     if (!comercioActualId) return;
     const { data } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
@@ -761,7 +825,7 @@ function enviarTicketWhatsApp(telefono, items, total) {
     window.open(url, '_blank');
 }
 
-/* HISTORIAL CON CAJERO */
+/* HISTORIAL */
 async function cargarHistorialVentas() {
     const tbody = document.getElementById('tabla-body-historial');
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Cargando historial...</td></tr>';
