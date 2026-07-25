@@ -1297,14 +1297,18 @@ async function crearCategoria() {
     const nombre = document.getElementById('nueva-cat-nombre').value.trim();
     if (!nombre) return alert("Ingresá un nombre de categoría.");
 
-    const { error } = await db.from('categorias').insert([{ 
+    // Usamos upsert para evitar el conflicto 409 si la categoría ya fue creada
+    const { error } = await db.from('categorias').upsert([{ 
         user_id: usuarioActual ? usuarioActual.id : null, 
         comercio_id: comercioActualId, 
         nombre 
-    }]);
+    }], { 
+        onConflict: 'comercio_id, nombre' 
+    });
 
     if (error) {
-        alert("La categoría ya existe o surgió un error.");
+        console.error("Error al guardar categoría:", error);
+        alert("No se pudo guardar la categoría.");
     } else {
         document.getElementById('nueva-cat-nombre').value = '';
         await cargarCategorias();
