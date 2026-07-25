@@ -1314,33 +1314,32 @@ async function crearCategoria() {
     const nombre = document.getElementById('nueva-cat-nombre').value.trim();
     if (!nombre) return alert("Ingresá un nombre de categoría.");
 
-    // Usamos upsert para evitar el conflicto 409 si la categoría ya fue creada
-    const { error } = await db.from('categorias').upsert([{ 
+    // 1. Verificamos si ya existe para este comercio
+    const { data: existente } = await db.from('categorias')
+        .select('id')
+        .eq('comercio_id', comercioActualId)
+        .ilike('nombre', nombre)
+        .maybeSingle();
+
+    if (existente) {
+        alert("⚠️ La categoría ya existe.");
+        return;
+    }
+
+    // 2. Si no existe, la insertamos limpiamente
+    const { error } = await db.from('categorias').insert([{ 
         user_id: usuarioActual ? usuarioActual.id : null, 
         comercio_id: comercioActualId, 
         nombre 
-    }], { 
-        onConflict: 'comercio_id, nombre' 
-    });
+    }]);
 
     if (error) {
         console.error("Error al guardar categoría:", error);
-        alert("No se pudo guardar la categoría.");
+        alert("No se pudo guardar la categoría: " + error.message);
     } else {
         document.getElementById('nueva-cat-nombre').value = '';
         await cargarCategorias();
         renderizarListaCategoriasModal();
-    }
-}
-
-async function borrarCategoria(id, nombre) {
-    if (confirm(`¿Eliminar la categoría "${nombre}"?`)) {
-        const { error } = await db.from('categorias').delete().eq('id', id);
-        if (error) alert("No se pudo eliminar.");
-        else {
-            await cargarCategorias();
-            renderizarListaCategoriasModal();
-        }
     }
 }
 
@@ -1411,7 +1410,7 @@ async function procesarArchivoCSV() {
         try {
             const lineas = e.target.result.split('\n');
             const nuevosProductos = [];
-            const categoriasSet = new Set(); // Para extraer categorías únicas del CSV
+            const categoriasSet = new Set();
 
             for (let i = 1; i < lineas.length; i++) {
                 const linea = lineas[i].trim();
@@ -1426,10 +1425,10 @@ async function procesarArchivoCSV() {
                     const codigo = columnas[4]?.replace(/"/g, '').trim() || null;
 
                     if (nombre && !isNaN(precio)) {
-                        categoriasSet.add(categoria); // Guardamos la categoría para registrarla
+                        categoriasSet.add(categoria);
 
                         nuevosProductos.push({
-                            user_id: usuarioActual.id,
+                            user_id: usuarioActual ? usuarioActual.id : null,
                             comercio_id: comercioActualId,
                             nombre: nombre,
                             categoria: categoria,
@@ -1449,18 +1448,24 @@ async function procesarArchivoCSV() {
                 return;
             }
 
-            // 1. Primero registramos/aseguramos las categorías únicas en la tabla 'categorias'
+            // Registrar cada categoría única de forma segura
             for (const catNombre of categoriasSet) {
-                await db.from('categorias').upsert([{ 
-                    user_id: usuarioActual ? usuarioActual.id : null, 
-                    comercio_id: comercioActualId, 
-                    nombre: catNombre 
-                }], { 
-                    onConflict: 'comercio_id, nombre' 
-                });
+                const { data: exi } = await db.from('categorias')
+                    .select('id')
+                    .eq('comercio_id', comercioActualId)
+                    .ilike('nombre', catNombre)
+                    .maybeSingle();
+
+                if (!exi) {
+                    await db.from('categorias').insert([{ 
+                        user_id: usuarioActual ? usuarioActual.id : null, 
+                        comercio_id: comercioActualId, 
+                        nombre: catNombre 
+                    }]);
+                }
             }
 
-            // 2. Luego insertamos los productos
+            // Insertar productos
             const { error } = await db.from('productos').insert(nuevosProductos);
 
             if (error) {
