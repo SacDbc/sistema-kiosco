@@ -147,12 +147,46 @@ async function manejarAuth(e) {
         if (!nombreComercio) {
             alert("Ingresá el nombre de tu comercio.");
             btn.disabled = false;
+            btn.innerText = 'Registrar Comercio';
             return;
         }
-        localStorage.setItem('temp_nombre_comercio', nombreComercio);
-        const { error } = await db.auth.signUp({ email, password });
-        if (error) alert("Error al registrar: " + error.message);
-        else alert("¡Registro enviado! Administración te dará el alta en breve.");
+
+        // 1. Crear el usuario en Auth
+        const { data: authData, error: authError } = await db.auth.signUp({ email, password });
+        
+        if (authError) {
+            alert("Error al registrar: " + authError.message);
+            btn.disabled = false;
+            btn.innerText = 'Registrar Comercio';
+            return;
+        }
+
+        if (authData && authData.user) {
+            const userId = authData.user.id;
+
+            // 2. Crear inmediatamente el registro en la tabla 'comercios' como pendiente
+            const { data: comercioCreado, error: comError } = await db.from('comercios').insert([{
+                nombre_comercio: nombreComercio,
+                dueno_id: userId,
+                estado_suscripcion: 'pendiente'
+            }]).select().single();
+
+            if (!comError && comercioCreado) {
+                // 3. Crear el perfil asociado
+                await db.from('perfiles').insert([{
+                    user_id: userId,
+                    email: email,
+                    rol: 'dueno',
+                    comercio_id: comercioCreado.id
+                }]);
+            }
+
+            alert("¡Registro enviado con éxito! El administrador habilitará tu cuenta en breve.");
+            
+            // Cerrar la sesión del nuevo usuario recién registrado para que no quede logueado automáticamente
+            await db.auth.signOut();
+            location.reload();
+        }
     } else {
         const { error } = await db.auth.signInWithPassword({ email, password });
         if (error) alert("Credenciales incorrectas: " + error.message);
@@ -161,7 +195,6 @@ async function manejarAuth(e) {
     btn.disabled = false;
     btn.innerText = modoRegistro ? 'Registrar Comercio' : 'Ingresar';
 }
-
 async function cerrarSesion() {
     await db.auth.signOut();
     location.reload();
