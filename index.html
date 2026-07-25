@@ -28,6 +28,17 @@
     </div>
 </div>
 
+<div id="pantalla-bloqueo" style="display:none; justify-content:center; align-items:center; min-height:100vh; background:#fff3cd; padding:20px;">
+    <div style="background:white; padding:30px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1); width:100%; max-width:450px; text-align:center;">
+        <div style="font-size:50px;">⚠️</div>
+        <h2 style="color:#856404; margin-bottom:10px;">Suscripción Inactiva o Vencida</h2>
+        <p style="color:#666; line-height:1.5; margin-bottom:20px;">
+            Tu cuenta no tiene una suscripción activa asignada. Para renovar tu acceso o abonar el servicio, contactate con administración.
+        </p>
+        <button onclick="cerrarSesion()" style="background:#dc3545; color:white; border:none; padding:10px 20px; border-radius:5px; font-weight:bold; cursor:pointer;">🚪 Salir / Iniciar con otra cuenta</button>
+    </div>
+</div>
+
 <div id="app-principal" style="display:none;">
 
     <header class="no-print">
@@ -36,6 +47,7 @@
             <button id="btn-tab-ventas" class="tab-btn activo" onclick="cambiarPestaña('ventas')">🛒 Punto de Venta</button>
             <button id="btn-tab-stock" class="tab-btn" onclick="cambiarPestaña('stock')">📦 Control de Stock</button>
             <button id="btn-tab-historial" class="tab-btn" onclick="cambiarPestaña('historial')">📊 Historial / Caja</button>
+            <button id="btn-tab-admin" class="tab-btn" onclick="cambiarPestaña('admin')" style="display:none; background:#ffc107; color:#333;">👑 Panel Admin</button>
             <button class="tab-btn" onclick="abrirModalConfig()" style="background:rgba(255,255,255,0.3);">⚙️ Config</button>
             <button class="tab-btn" onclick="cerrarSesion()" style="background:#dc3545;">🚪 Salir</button>
         </nav>
@@ -162,6 +174,28 @@
                             </tr>
                         </thead>
                         <tbody id="tabla-body-historial"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="seccion-admin" class="seccion">
+            <div class="modulo-stock">
+                <h2>👑 Panel de Administración de Clientes SaaS</h2>
+                <p style="color:#666; font-size:14px; margin-bottom:15px;">Gestión y control de cuentas activas de kioscos suscriptos.</p>
+
+                <div class="tabla-contenedor">
+                    <table class="tabla-stock">
+                        <thead>
+                            <tr>
+                                <th>Email Cliente</th>
+                                <th>Nombre Comercio</th>
+                                <th>Estado Suscripción</th>
+                                <th>Vencimiento</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-body-admin"></tbody>
                     </table>
                 </div>
             </div>
