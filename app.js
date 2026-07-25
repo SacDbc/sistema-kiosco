@@ -7,7 +7,7 @@ let perfilUsuario = null;
 let comercioActualId = null;
 let comercioObjeto = null;
 let cajeroActivoNombre = 'Dueño';
-let cajeroActivoObjeto = null; // Objeto con permisos
+let cajeroActivoObjeto = null;
 let cajeroSeleccionadoTemp = null;
 
 let productosGlobales = [];
@@ -151,17 +151,15 @@ async function manejarAuth(e) {
             return;
         }
 
-        // 1. VALIDACIÓN DE LÍMITE: Verificar si el correo ya registró un comercio previo
         const { data: perfilExistente } = await db.from('perfiles').select('id, email').eq('email', email).maybeSingle();
 
         if (perfilExistente) {
-            alert("⚠️ Este correo ya tiene un comercio registrado en el sistema. Para habilitar una nueva sucursal o restablecer tu acceso, contactate con administración.");
+            alert("⚠️ Este correo ya tiene un comercio registrado. Contactate con administración para agregar sucursales.");
             btn.disabled = false;
             btn.innerText = 'Registrar Comercio';
             return;
         }
 
-        // 2. Crear el usuario en Auth
         const { data: authData, error: authError } = await db.auth.signUp({ email, password });
         
         if (authError) {
@@ -174,7 +172,6 @@ async function manejarAuth(e) {
         if (authData && authData.user) {
             const userId = authData.user.id;
 
-            // 3. Crear el Comercio con el nombre inicial para el Panel Admin
             const { data: comercioCreado, error: comError } = await db.from('comercios').insert([{
                 nombre_comercio: nombreComercio,
                 dueno_id: userId,
@@ -182,7 +179,6 @@ async function manejarAuth(e) {
             }]).select().single();
 
             if (!comError && comercioCreado) {
-                // 4. Crear Perfil de usuario vinculándolo al comercio
                 await db.from('perfiles').insert([{
                     user_id: userId,
                     email: email,
@@ -190,13 +186,10 @@ async function manejarAuth(e) {
                     comercio_id: comercioCreado.id
                 }]);
 
-                // 5. Configurar el nombre por defecto del Ticket en el almacenamiento del navegador del cliente
                 localStorage.setItem('cfg_nombre', nombreComercio);
             }
 
             alert("¡Registro enviado con éxito! El administrador habilitará tu cuenta en breve.");
-            
-            // Cerrar sesión para que quede a la espera de la aprobación del Super Admin
             await db.auth.signOut();
             location.reload();
         }
@@ -214,7 +207,7 @@ async function cerrarSesion() {
     location.reload();
 }
 
-/* APERTURA DE TURNO Y CONTROL VISIBILIDAD PERMISOS */
+/* APERTURA TURNO Y CONTROL PERMISOS */
 function solicitarAperturaTurno() {
     renderizarBotonesAperturaTurno();
     document.getElementById('bloque-ingreso-pin-apertura').style.display = 'none';
@@ -270,7 +263,7 @@ function ingresarComoDuenoDirecto() {
     const pin = prompt("Ingresá tu PIN de Dueño / Administrador:", "");
     if (pin === configComercio.pinDueno) {
         cajeroActivoNombre = 'Dueño';
-        cajeroActivoObjeto = null; // Dueño full
+        cajeroActivoObjeto = null;
         actualizarNombreCajeroUI();
         aplicarPermisosVisuales();
         document.getElementById('pantalla-apertura-turno').style.display = 'none';
@@ -295,7 +288,7 @@ function aplicarPermisosVisuales() {
         btnStock.style.display = cajeroActivoObjeto.perm_stock ? 'inline-block' : 'none';
         btnHistorial.style.display = cajeroActivoObjeto.perm_historial ? 'inline-block' : 'none';
         btnVend.style.display = cajeroActivoObjeto.perm_vendedores ? 'inline-block' : 'none';
-        btnConfig.style.display = 'none'; // Config siempre reservado al dueño
+        btnConfig.style.display = 'none';
     }
 }
 
@@ -306,7 +299,6 @@ function intentarAccesoProtegido(tab) {
         return;
     }
 
-    // Verificar si el vendedor tiene el permiso
     let tienePermiso = false;
     if (cajeroActivoObjeto) {
         if (tab === 'stock' && cajeroActivoObjeto.perm_stock) tienePermiso = true;
@@ -332,7 +324,7 @@ function actualizarNombreCajeroUI() {
     if (elem) elem.innerText = cajeroActivoNombre;
 }
 
-/* CREAR / EDITAR VENDEDORES CON CHECKBOXES */
+/* VENDEDORES */
 async function cargarVendedores() {
     if (!comercioActualId) return;
     const { data } = await db.from('vendedores').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
@@ -537,7 +529,7 @@ function guardarConfiguracion() {
     localStorage.setItem('cfg_formato', formato);
 
     if (perfilUsuario && perfilUsuario.rol === 'dueno') {
-        db.from('comercios').update({ nombre_comercio: nombre, pin_dueno: pinDueno }).eq('id', comercioActualId);
+        db.from('comercios').update({ pin_dueno: pinDueno }).eq('id', comercioActualId);
     }
 
     aplicarConfiguracionUI();
@@ -599,7 +591,7 @@ async function cambiarEstadoComercio(idComercio, nuevoEstado) {
     cargarTablaAdmin();
 }
 
-/* OPERACIONES DE VENTA Y PRODUCTOS */
+/* CARGA Y RENDERIZADO DE PRODUCTOS Y FAVORITOS */
 async function cargarCategorias() {
     if (!comercioActualId) return;
     const { data } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
@@ -643,7 +635,15 @@ function renderizarFavoritos(lista) {
     const contenedor = document.getElementById('contenedor-favoritos');
     contenedor.innerHTML = '';
 
-    lista.slice(0, 8).forEach(prod => {
+    // Filtrar solo los marcados como Favorito / Botón Rápido
+    const favoritos = lista.filter(p => p.es_favorito === true);
+
+    if (favoritos.length === 0) {
+        contenedor.innerHTML = '<div style="color:#888; font-size:13px; grid-column: span 4;">No hay productos rápidos marcados. Editá un producto en "Stock" y tildá "⭐ Mostrar en Botones Rápidos".</div>';
+        return;
+    }
+
+    favoritos.forEach(prod => {
         const btn = document.createElement('button');
         btn.className = 'btn-favorito';
         btn.onclick = () => solicitarCantidadYAgregar(prod);
@@ -652,15 +652,118 @@ function renderizarFavoritos(lista) {
         if (prod.stock <= 0) colorStock = 'red';
         else if (prod.stock <= (prod.stock_minimo || 3)) colorStock = '#d97706';
 
+        let textoPromo = '';
+        if (prod.promo_cant && prod.promo_precio) {
+            textoPromo = `<br><span style="background:#d1fae5; color:#065f46; padding:1px 4px; border-radius:3px; font-size:11px; font-weight:bold;">🎁 ${prod.promo_cant}x $${prod.promo_precio}</span>`;
+        }
+
         btn.innerHTML = `
             ${prod.nombre}<br>
-            <span style="color:#28a745;">$${prod.precio}</span><br>
-            <small style="color:${colorStock}; font-weight:${prod.stock <= 0 ? 'bold' : 'normal'};">
+            <span style="color:#28a745; font-weight:bold;">$${prod.precio}</span>${textoPromo}<br>
+            <small style="color:${colorStock}; font-weight:${prod.stock <= 0 ? 'bold' : 'normal'}; font-size:11px;">
                 ${prod.stock <= 0 ? 'SIN STOCK (' + prod.stock + ')' : 'Stock: ' + prod.stock}
             </small>
         `;
         contenedor.appendChild(btn);
     });
+}
+
+function renderizarTablaStock(lista) {
+    const tbody = document.getElementById('tabla-body-stock');
+    tbody.innerHTML = '';
+
+    if (lista.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#888;">No se encontraron productos.</td></tr>';
+        return;
+    }
+
+    lista.forEach(prod => {
+        const stockMin = prod.stock_minimo !== undefined ? prod.stock_minimo : 3;
+        let etiquetaStock = '';
+
+        if (prod.stock <= 0) {
+            etiquetaStock = `<span style="color:red; font-weight:bold; background:#ffe6e6; padding:2px 6px; border-radius:4px;">⚠️ ${prod.stock} u.</span>`;
+        } else if (prod.stock <= stockMin) {
+            etiquetaStock = `<span style="color:#d97706; font-weight:bold; background:#fef3c7; padding:2px 6px; border-radius:4px;">⚠️ ${prod.stock} u.</span>`;
+        } else {
+            etiquetaStock = `<span style="color:green; font-weight:bold;">${prod.stock} u.</span>`;
+        }
+
+        let etiquetaPromo = '<span style="color:#aaa;">-</span>';
+        if (prod.promo_cant && prod.promo_precio) {
+            etiquetaPromo = `<span style="background:#d1fae5; color:#065f46; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:12px;">🎁 ${prod.promo_cant}x por $${prod.promo_precio}</span>`;
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><span style="background:#e9ecef; padding:3px 7px; border-radius:4px; font-size:12px;">${prod.categoria || 'General'}</span></td>
+            <td><code>${prod.codigo_barras || 'N/A'}</code></td>
+            <td><strong>${prod.nombre}</strong></td>
+            <td>$${prod.precio}</td>
+            <td>${etiquetaPromo}</td>
+            <td>${prod.es_favorito ? '⭐ SI' : 'NO'}</td>
+            <td>${etiquetaStock}</td>
+            <td>
+                <button onclick="abrirModalEditar(${prod.id})" style="background:#ffc107; color:#333; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; font-weight:bold; margin-right:5px;">✏️ Editar</button>
+                <button onclick="eliminarProducto(${prod.id})" style="background:#dc3545; color:white; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; font-weight:bold;">🗑️ Borrar</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+/* LÓGICA DE CARRITO Y CÁLCULO DE COMBO / PROMOCIONES AUTOMÁTICO */
+function agregarAlCarrito(producto, cantidad = 1) {
+    const existe = carrito.find(item => item.id === producto.id);
+    if (existe) {
+        existe.cantidad += cantidad;
+    } else {
+        carrito.push({ ...producto, cantidad: cantidad });
+    }
+    actualizarCarritoUI();
+}
+
+function actualizarCarritoUI() {
+    const tbody = document.getElementById('carrito-items-body');
+    tbody.innerHTML = '';
+    totalVentaActual = 0;
+
+    carrito.forEach((item, index) => {
+        let subtotal = 0;
+        let esPromoAplicada = false;
+
+        // Verificar si el producto tiene promoción por cantidad
+        if (item.promo_cant && item.promo_precio && item.cantidad >= item.promo_cant) {
+            esPromoAplicada = true;
+            const combosCompletos = Math.floor(item.cantidad / item.promo_cant);
+            const unidadesSueltas = item.cantidad % item.promo_cant;
+
+            subtotal = (combosCompletos * item.promo_precio) + (unidadesSueltas * item.precio);
+        } else {
+            subtotal = item.precio * item.cantidad;
+        }
+
+        totalVentaActual += subtotal;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${item.cantidad}x</strong></td>
+            <td>
+                ${item.nombre}
+                ${esPromoAplicada ? '<br><small style="color:#059669; font-weight:bold;">🎁 ¡Promo Combo Aplicada!</small>' : ''}
+            </td>
+            <td>$${subtotal}</td>
+            <td><button class="btn-eliminar" onclick="eliminarDelCarrito(${index})">✕</button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    document.getElementById('total-monto').innerText = totalVentaActual;
+}
+
+function eliminarDelCarrito(index) {
+    carrito.splice(index, 1);
+    actualizarCarritoUI();
 }
 
 function buscarProductosLive() {
@@ -750,43 +853,6 @@ function solicitarCantidadYAgregar(producto) {
             agregarAlCarrito(producto, cant);
         }
     }
-}
-
-function agregarAlCarrito(producto, cantidad = 1) {
-    const existe = carrito.find(item => item.id === producto.id);
-    if (existe) {
-        existe.cantidad += cantidad;
-    } else {
-        carrito.push({ ...producto, cantidad: cantidad });
-    }
-    actualizarCarritoUI();
-}
-
-function eliminarDelCarrito(index) {
-    carrito.splice(index, 1);
-    actualizarCarritoUI();
-}
-
-function actualizarCarritoUI() {
-    const tbody = document.getElementById('carrito-items-body');
-    tbody.innerHTML = '';
-    totalVentaActual = 0;
-
-    carrito.forEach((item, index) => {
-        const subtotal = item.precio * item.cantidad;
-        totalVentaActual += subtotal;
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><strong>${item.cantidad}x</strong></td>
-            <td>${item.nombre}</td>
-            <td>$${subtotal}</td>
-            <td><button class="btn-eliminar" onclick="eliminarDelCarrito(${index})">✕</button></td>
-        `;
-        tbody.appendChild(tr);
-    });
-
-    document.getElementById('total-monto').innerText = totalVentaActual;
 }
 
 function abrirModalCobro() {
@@ -1025,102 +1091,7 @@ function actualizarTotalesCaja(total, efectivo, qr, transf) {
     document.getElementById('caja-transf').innerText = `$${transf}`;
 }
 
-/* STOCK Y PRODUCTOS */
-function renderizarTablaStock(lista) {
-    const tbody = document.getElementById('tabla-body-stock');
-    tbody.innerHTML = '';
-
-    if (lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#888;">No se encontraron productos.</td></tr>';
-        return;
-    }
-
-    lista.forEach(prod => {
-        const stockMin = prod.stock_minimo !== undefined ? prod.stock_minimo : 3;
-        let etiquetaStock = '';
-
-        if (prod.stock <= 0) {
-            etiquetaStock = `<span style="color:red; font-weight:bold; background:#ffe6e6; padding:2px 6px; border-radius:4px;">⚠️ ${prod.stock} u. (SIN STOCK)</span>`;
-        } else if (prod.stock <= stockMin) {
-            etiquetaStock = `<span style="color:#d97706; font-weight:bold; background:#fef3c7; padding:2px 6px; border-radius:4px;">⚠️ ${prod.stock} u. (BAJO)</span>`;
-        } else {
-            etiquetaStock = `<span style="color:green; font-weight:bold;">${prod.stock} u.</span>`;
-        }
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><span style="background:#e9ecef; padding:3px 7px; border-radius:4px; font-size:12px;">${prod.categoria || 'General'}</span></td>
-            <td><code>${prod.codigo_barras || 'N/A'}</code></td>
-            <td><strong>${prod.nombre}</strong></td>
-            <td>$${prod.precio}</td>
-            <td>${etiquetaStock}</td>
-            <td>
-                <button onclick="abrirModalEditar(${prod.id})" style="background:#ffc107; color:#333; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; font-weight:bold; margin-right:5px;">✏️ Editar</button>
-                <button onclick="eliminarProducto(${prod.id})" style="background:#dc3545; color:white; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; font-weight:bold;">🗑️ Borrar</button>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
-function filtrarStockBajo() {
-    mostrandoSoloBajoStock = !mostrandoSoloBajoStock;
-    const btn = event.target;
-
-    if (mostrandoSoloBajoStock) {
-        btn.innerText = "📋 Ver Todos los Productos";
-        btn.style.background = "#007bff";
-        btn.style.color = "white";
-
-        const repuestos = productosGlobales.filter(p => p.stock <= (p.stock_minimo !== undefined ? p.stock_minimo : 3));
-        renderizarTablaStock(repuestos);
-    } else {
-        btn.innerText = "⚠️ Ver Bajo Stock / Reponer";
-        btn.style.background = "#ffc107";
-        btn.style.color = "#333";
-        renderizarTablaStock(productosGlobales);
-    }
-}
-
-function filtrarTablaStock() {
-    const input = document.getElementById('buscador-stock');
-    if (!input) return;
-
-    const texto = input.value.toLowerCase().trim();
-    if (!texto) {
-        renderizarTablaStock(productosGlobales);
-        return;
-    }
-
-    const filtrados = productosGlobales.filter(p => {
-        const nombre = (p.nombre || '').toLowerCase();
-        const categoria = (p.categoria || 'general').toLowerCase();
-        const codigo = (p.codigo_barras || '').toString().toLowerCase();
-
-        return nombre.includes(texto) || categoria.includes(texto) || codigo.includes(texto);
-    });
-
-    renderizarTablaStock(filtrados);
-}
-
-function exportarProductosCSV() {
-    if (productosGlobales.length === 0) return alert("No hay productos cargados para exportar.");
-
-    let contenidoCSV = "nombre,categoria,precio,stock,codigo_barras\n";
-    productosGlobales.forEach(prod => {
-        contenidoCSV += `"${prod.nombre}","${prod.categoria || 'General'}",${prod.precio},${prod.stock},${prod.codigo_barras || ''}\n`;
-    });
-
-    const blob = new Blob([contenidoCSV], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `inventario_kiosco_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
+/* MODALES DE CREACIÓN Y EDICIÓN DE PRODUCTO CON PROMO/FAVORITO */
 function abrirModalCrear() {
     document.getElementById('modal-titulo-prod').innerText = 'Nuevo Producto';
     document.getElementById('p-id').value = '';
@@ -1130,6 +1101,11 @@ function abrirModalCrear() {
     document.getElementById('p-stock').value = '';
     document.getElementById('p-stock-minimo').value = '3';
     document.getElementById('p-codigo').value = '';
+
+    document.getElementById('p-favorito').checked = false;
+    document.getElementById('p-promo-cant').value = '';
+    document.getElementById('p-promo-precio').value = '';
+
     document.getElementById('modal-producto').style.display = 'flex';
 }
 
@@ -1145,6 +1121,11 @@ function abrirModalEditar(id) {
     document.getElementById('p-stock').value = prod.stock;
     document.getElementById('p-stock-minimo').value = prod.stock_minimo !== undefined ? prod.stock_minimo : 3;
     document.getElementById('p-codigo').value = prod.codigo_barras || '';
+
+    document.getElementById('p-favorito').checked = prod.es_favorito || false;
+    document.getElementById('p-promo-cant').value = prod.promo_cant || '';
+    document.getElementById('p-promo-precio').value = prod.promo_precio || '';
+
     document.getElementById('modal-producto').style.display = 'flex';
 }
 
@@ -1161,6 +1142,10 @@ async function guardarProducto() {
     const stockMin = Number(document.getElementById('p-stock-minimo').value);
     const codigo = document.getElementById('p-codigo').value.trim();
 
+    const es_favorito = document.getElementById('p-favorito').checked;
+    const promo_cant = Number(document.getElementById('p-promo-cant').value) || null;
+    const promo_precio = Number(document.getElementById('p-promo-precio').value) || null;
+
     if (!nombre || !precio) return alert("Completá nombre y precio.");
 
     const datos = {
@@ -1171,7 +1156,10 @@ async function guardarProducto() {
         precio,
         stock: isNaN(stock) ? 0 : stock,
         stock_minimo: isNaN(stockMin) ? 3 : stockMin,
-        codigo_barras: codigo || null
+        codigo_barras: codigo || null,
+        es_favorito,
+        promo_cant,
+        promo_precio
     };
 
     let error;
@@ -1328,7 +1316,6 @@ async function procesarArchivoCSV() {
                 const linea = lineas[i].trim();
                 if (!linea) continue;
 
-                // Separar adecuadamente teniendo en cuenta comas dentro o fuera de comillas
                 const columnas = linea.split(',');
                 if (columnas.length >= 3) {
                     const nombre = columnas[0]?.replace(/"/g, '').trim();
@@ -1359,19 +1346,16 @@ async function procesarArchivoCSV() {
                 return;
             }
 
-            // Insertar en Supabase
             const { error } = await db.from('productos').insert(nuevosProductos);
 
             if (error) {
-                console.error("Error al importar:", error);
-                alert("⚠️ Error de Supabase al guardar: " + error.message);
+                alert("⚠️ Error al guardar: " + error.message);
             } else {
                 alert(`¡Se importaron ${nuevosProductos.length} productos con éxito!`);
                 cerrarModalImportar();
                 await cargarProductos();
             }
         } catch (err) {
-            console.error("Error crítico:", err);
             alert("Error al procesar el archivo CSV: " + err.message);
         } finally {
             btn.disabled = false;

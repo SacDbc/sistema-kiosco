@@ -9,7 +9,7 @@
 </head>
 <body>
 
-<!-- PANTALLA DE LOGIN (DUEÑO / ADMIN) -->
+<!-- PANTALLA DE LOGIN -->
 <div id="pantalla-login" style="display:flex; justify-content:center; align-items:center; min-height:100vh; background:#e9ecef;">
     <div style="background:white; padding:30px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.15); width:100%; max-width:380px;">
         <h2 style="text-align:center; color:#007bff; margin-bottom:5px;">🏪 KioscoEnLínea</h2>
@@ -108,7 +108,7 @@
                         <div id="desplegable-resultados" class="desplegable-resultados"></div>
                     </div>
 
-                    <div class="titulo-favoritos">⭐ Productos Rápidos</div>
+                    <div class="titulo-favoritos">⭐ Productos Rápidos / Sin Código</div>
                     <div id="contenedor-favoritos" class="grid-favoritos"></div>
                 </main>
 
@@ -175,7 +175,9 @@
                                 <th>Categoría</th>
                                 <th>Barcode</th>
                                 <th>Producto</th>
-                                <th>Precio</th>
+                                <th>Precio Un.</th>
+                                <th>Promoción / Combo</th>
+                                <th>Rápido</th>
                                 <th>Stock</th>
                                 <th>Acciones</th>
                             </tr>
@@ -278,7 +280,65 @@
 
     </div>
 
-    <!-- Modal Crear/Editar Vendedor con Permisos -->
+    <!-- Modal Crear/Editar Producto con Promoción y Favorito -->
+    <div id="modal-producto" class="modal no-print">
+        <div class="modal-contenido" style="max-width:450px;">
+            <h2 id="modal-titulo-prod">Nuevo Producto</h2>
+            <input type="hidden" id="p-id">
+            
+            <input type="text" id="p-nombre" placeholder="Nombre (Ej: Caramelo Arcor / Bombón)">
+            
+            <label style="font-size:12px; font-weight:bold; color:#666;">CATEGORÍA:</label>
+            <select id="p-categoria-select" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px; outline:none;"></select>
+            
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;">
+                    <label style="font-size:12px; font-weight:bold; color:#666;">PRECIO INDIVIDUAL ($):</label>
+                    <input type="number" id="p-precio" placeholder="Ej: 200">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size:12px; font-weight:bold; color:#666;">STOCK ACTUAL:</label>
+                    <input type="number" id="p-stock" placeholder="Ej: 100">
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <input type="number" id="p-stock-minimo" placeholder="Stock Mínimo" value="3" style="flex:1;">
+                <input type="text" id="p-codigo" placeholder="Código de Barras (Opcional)" style="flex:1;">
+            </div>
+
+            <!-- Opción Favorito / Botón Rápido -->
+            <div style="background:#eef2ff; border:1px solid #c7d2fe; padding:10px; border-radius:6px; margin-top:10px;">
+                <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:bold; color:#3730a3; cursor:pointer;">
+                    <input type="checkbox" id="p-favorito"> ⭐ Mostrar en Botones Rápidos (Punto de Venta)
+                </label>
+                <small style="color:#666; display:block; margin-top:2px;">Ideal para golosinas, cigarrillos sueltos o productos sin código de barras.</small>
+            </div>
+
+            <!-- Opción Promoción por Cantidad -->
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:12px; border-radius:6px; margin-top:10px;">
+                <strong style="color:#166534; font-size:13px; display:block; margin-bottom:6px;">🎁 Promoción / Combo por Cantidad (Opcional)</strong>
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1;">
+                        <label style="font-size:11px; font-weight:bold; color:#666;">CANTIDAD COMBO:</label>
+                        <input type="number" id="p-promo-cant" placeholder="Ej: 6 (unidades)">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:11px; font-weight:bold; color:#666;">PRECIO TOTAL COMBO ($):</label>
+                        <input type="number" id="p-promo-precio" placeholder="Ej: 1000">
+                    </div>
+                </div>
+                <small style="color:#15803d; font-size:11px; display:block; margin-top:4px;">Ejemplo: Si lleva 6 caramelos de $200, cobra $1.000 en vez de $1.200 de forma automática.</small>
+            </div>
+
+            <div class="modal-acciones" style="margin-top:15px;">
+                <button class="btn-guardar" onclick="guardarProducto()">Guardar Producto</button>
+                <button class="btn-cancelar" onclick="cerrarModal()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modales adicionales (Vendedores, Config, Importar, Categorías, Cobro) -->
     <div id="modal-vendedor" class="modal no-print">
         <div class="modal-contenido" style="max-width:420px;">
             <h2 id="modal-vendedor-titulo">➕ Nuevo Vendedor</h2>
@@ -332,26 +392,6 @@
             <div class="modal-acciones">
                 <button class="btn-guardar" onclick="guardarConfiguracion()">Guardar Cambios</button>
                 <button class="btn-cancelar" onclick="cerrarModalConfig()">Cancelar</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-producto" class="modal no-print">
-        <div class="modal-contenido">
-            <h2 id="modal-titulo-prod">Nuevo Producto</h2>
-            <input type="hidden" id="p-id">
-            <input type="text" id="p-nombre" placeholder="Nombre (Ej: Marlboro Red 20)">
-            <label style="font-size:12px; font-weight:bold; color:#666;">CATEGORÍA:</label>
-            <select id="p-categoria-select" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px; outline:none;"></select>
-            <input type="number" id="p-precio" placeholder="Precio ($)">
-            <div style="display:flex; gap:10px;">
-                <input type="number" id="p-stock" placeholder="Stock Actual" style="flex:1;">
-                <input type="number" id="p-stock-minimo" placeholder="Stock Mínimo" value="3" style="flex:1;">
-            </div>
-            <input type="text" id="p-codigo" placeholder="Código de Barras (Opcional)">
-            <div class="modal-acciones">
-                <button class="btn-guardar" onclick="guardarProducto()">Guardar</button>
-                <button class="btn-cancelar" onclick="cerrarModal()">Cancelar</button>
             </div>
         </div>
     </div>
