@@ -65,6 +65,52 @@
     </div>
 </div>
 
+<!-- MODAL / PANTALLA APERTURA DE CAJA -->
+<div id="modal-apertura-caja" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:white; padding:30px; border-radius:10px; width:400px; text-align:center; box-shadow:0 4px 15px rgba(0,0,0,0.3);">
+        <h2>🔓 Apertura de Caja</h2>
+        <p style="color:#666; font-size:14px; margin-bottom:20px;">Ingresá el fondo fijo o efectivo inicial con el que arranca el cajón.</p>
+        
+        <label style="display:block; text-align:left; font-weight:bold; margin-bottom:5px;">Fondo Inicial en Efectivo ($):</label>
+        <input type="number" id="input-fondo-inicial" value="0" style="width:100%; padding:10px; font-size:18px; border:1px solid #ccc; border-radius:5px; margin-bottom:20px; box-sizing:border-box;">
+        
+        <button onclick="confirmarAperturaCajaOficial()" style="background:#28a745; color:white; border:none; padding:12px; width:100%; border-radius:5px; font-size:16px; font-weight:bold; cursor:pointer;">✔ Abrir Caja y Comenzar</button>
+    </div>
+</div>
+
+<!-- MODAL CIERRE DE CAJA / ARQUEO -->
+<div id="modal-cierre-caja" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:white; padding:30px; border-radius:10px; width:450px; text-align:left; box-shadow:0 4px 15px rgba(0,0,0,0.3); max-height:90vh; overflow-y:auto;">
+        <h2 style="text-align:center; margin-bottom:15px;">🔒 Cierre y Arqueo de Caja</h2>
+        
+        <div style="background:#f8f9fa; padding:12px; border-radius:6px; font-size:14px; margin-bottom:15px; line-height:1.6;">
+            <div>👤 Cajero: <strong id="cierre-cajero">Dueño</strong></div>
+            <div>💵 Fondo Inicial: <strong id="cierre-fondo">$0</strong></div>
+            <div>📈 Ventas Efectivo: <strong id="cierre-ventas-efectivo" style="color:green;">$0</strong></div>
+            <div>📤 Retiros / Gastos: <strong id="cierre-retiros" style="color:red;">$0</strong></div>
+            <hr style="border:0; border-top:1px solid #ddd; margin:8px 0;">
+            <div>💰 <strong>Efectivo Esperado en Caja:</strong> <span id="cierre-esperado" style="font-size:16px; font-weight:bold; color:#007bff;">$0</span></div>
+        </div>
+
+        <label style="display:block; font-weight:bold; margin-bottom:5px;">¿Cuánto dinero hay FÍSICAMENTE en la caja? ($):</label>
+        <input type="number" id="input-dinero-fisico" oninput="calcularDiferenciaArqueo()" placeholder="Contá los billetes y tipea aquí" style="width:100%; padding:10px; font-size:16px; border:1px solid #ccc; border-radius:5px; margin-bottom:15px; box-sizing:border-box;">
+
+        <div style="background:#e9ecef; padding:10px; border-radius:6px; text-align:center; margin-bottom:15px;">
+            <span style="font-size:14px; font-weight:bold;">Diferencia / Descuadre:</span><br>
+            <span id="cierre-diferencia" style="font-size:18px; font-weight:bold;">$0</span>
+        </div>
+
+        <label style="display:block; font-weight:bold; margin-bottom:5px;">Observaciones / Motivo de diferencia (Opcional):</label>
+        <textarea id="input-obs-cierre" placeholder="Ej. Cambio dado de más, gastado en hielo..." style="width:100%; padding:8px; border:1px solid #ccc; border-radius:5px; margin-bottom:15px; box-sizing:border-box; height:60px;"></textarea>
+
+        <div style="display:flex; gap:10px;">
+            <button onclick="confirmarCierreCajaOficial(false)" style="flex:1; background:#17a2b8; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;">🧾 Cerrar (Sin Detalle)</button>
+            <button onclick="confirmarCierreCajaOficial(true)" style="flex:1; background:#28a745; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;">📊 Cerrar (Con Detalle)</button>
+        </div>
+        <button onclick="cerrarModalCierreCaja()" style="background:#6c757d; color:white; border:none; padding:8px; width:100%; border-radius:5px; margin-top:10px; cursor:pointer;">Cancelar</button>
+    </div>
+</div>
+
 <div id="app-principal" style="display:none;">
 
     <header class="no-print">

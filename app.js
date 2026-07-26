@@ -1618,3 +1618,189 @@ function exportarProductosCSV() {
     link.click();
     document.body.removeChild(link);
 }
+
+let cajaActualId = null;
+let fondoInicialActual = 0;
+
+// 1. APERTURA DE CAJA
+function abrirModalAperturaCaja() {
+    document.getElementById('input-fondo-inicial').value = '0';
+    document.getElementById('modal-apertura-caja').style.display = 'flex';
+    setTimeout(() => document.getElementById('input-fondo-inicial').focus(), 100);
+}
+
+async function confirmarAperturaCajaOficial() {
+    const fondo = Number(document.getElementById('input-fondo-inicial').value) || 0;
+    fondoInicialActual = fondo;
+
+    const datosCaja = {
+        comercio_id: comercioActualId,
+        vendedor_nombre: cajeroActivoNombre,
+        monto_inicial: fondo,
+        estado: 'abierta'
+    };
+
+    const { data, error } = await db.from('cajas').insert([datosCaja]).select().single();
+
+    if (error) {
+        alert("Error al abrir la caja: " + error.message);
+    } else {
+        cajaActualId = data.id;
+        document.getElementById('modal-apertura-caja').style.display = 'none';
+        alert(`¡Caja abierta con éxito por ${cajeroActivoNombre} con un fondo de $${fondo}!`);
+    }
+}
+
+// Interceptar cuando el cajero ingresa correctamente su PIN para abrir turno
+// (Puedes llamar a abrirModalAperturaCaja() justo después de confirmar el PIN en tu función confirmarIngresoTurno)
+
+// 2. PREparar Y ABRIR MODAL DE CIERRE
+async function abrirModalCierreCaja() {
+    if (!cajaActualId) {
+        // Si no hay registro de caja abierto, buscamos el último abierto del comercio
+        const { data: abierta } = await db.from('cajas')
+            .select('*')
+            .eq('comercio_id', comercioActualId)
+            .eq('estado', 'abierta')
+            .order('id', { ascending: false })
+            .maybeSingle();
+
+        if (abierta) {
+            cajaActualId = abierta.id;
+            fondoInicialActual = abierta.monto_inicial || 0;
+        } else {
+            fondoInicialActual = 0;
+        }
+    }
+
+    // Calcular las ventas realizadas en el turno actual (efectivo, qr, transferencia)
+    // Para simplificar y hacerlo robusto, tomamos las ventas del día o de la sesión actual
+    const { data: ventasTurno } = await db.from('ventas')
+        .select('*')
+        .eq('comercio_id', comercioActualId);
+
+    let tEfectivo = 0, tQr = 0, tTransf = 0;
+    (ventasTurno || []).forEach(v => {
+        const monto = Number(v.monto_total) || 0;
+        if (v.medio_pago === 'Efectivo') tEfectivo += monto;
+        else if (v.medio_pago === 'QR') tQr += monto;
+        else if (v.medio_pago === 'Transferencia') tTransf += monto;
+    });
+
+    // Guardamos totales calculados temporalmente en el modal
+    window.tempTotalesTurno = { efectivo: tEfectivo, qr: tQr, transferencia: tTransf };
+    let retirosEfectivo = 0; // Podés conectar esto a una tabla de retiros si lo deseas
+
+    const efectivoEsperado = fondoInicialActual + tEfectivo - retirosEfectivo;
+
+    document.getElementById('cierre-cajero').innerText = cajeroActivoNombre;
+    document.getElementById('cierre-fondo').innerText = `$${fondoInicialActual}`;
+    document.getElementById('cierre-ventas-efectivo').innerText = `$${tEfectivo}`;
+    document.getElementById('cierre-retiros').innerText = `$${retirosEfectivo}`;
+    document.getElementById('cierre-esperado').innerText = `$${efectivoEsperado}`;
+    
+    document.getElementById('input-dinero-fisico').value = '';
+    document.getElementById('cierre-diferencia').innerText = '$0';
+    document.getElementById('input-obs-cierre').value = '';
+
+    window.tempEfectivoEsperado = efectivoEsperado;
+    document.getElementById('modal-cierre-caja').style.display = 'flex';
+    setTimeout(() => document.getElementById('input-dinero-fisico').focus(), 100);
+}
+
+function cerrarModalCierreCaja() {
+    document.getElementById('modal-cierre-caja').style.display = 'none';
+}
+
+function calcularDiferenciaArqueo() {
+    const fisico = Number(document.getElementById('input-dinero-fisico').value) || 0;
+    const esperado = window.tempEfectivoEsperado || 0;
+    const diferencia = fisico - esperado;
+
+    const elDiferencia = document.getElementById('cierre-diferencia');
+    elDiferencia.innerText = `$${diferencia}`;
+    if (diferencia === 0) {
+        elDiferencia.style.color = 'green';
+        elDiferencia.innerText += ' (¡Perfecto!)';
+    } else if (diferencia > 0) {
+        elDiferencia.style.color = 'blue';
+        elDiferencia.innerText += ` (Sobrante de $${diferencia})`;
+    } else {
+        elDiferencia.style.color = 'red';
+        elDiferencia.innerText += ` (Faltante de $${Math.abs(diferencia)})`;
+    }
+}
+
+// 3. CONFIRMAR CIERRE Y GUARDAR / IMPRIMIR TICKET
+async function confirmarCierreCajaOficial(conDetalle = false) {
+    const fisico = Number(document.getElementById('input-dinero-fisico').value) || 0;
+    const esperado = window.tempEfectivoEsperado || 0;
+    const diferencia = fisico - esperado;
+    const observaciones = document.getElementById('input-obs-cierre').value.trim();
+    const totales = window.tempTotalesTurno || { efectivo: 0, qr: 0, transferencia: 0 };
+    const totalGeneral = totales.efectivo + totales.qr + totales.transferencia;
+
+    if (cajaActualId) {
+        await db.from('cajas').update({
+            monto_final_declarado: fisico,
+            total_efectivo: totales.efectivo,
+            total_qr: totales.qr,
+            total_transferencia: totales.transferencia,
+            total_general: totalGeneral,
+            diferencia: diferencia,
+            estado: 'cerrada',
+            observaciones: observaciones,
+            closed_at: new Date().toISOString()
+        }).eq('id', cajaActualId);
+    }
+
+    alert("¡Caja cerrada y arqueo guardado con éxito!");
+    cerrarModalCierreCaja();
+
+    // IMPRIMIR TICKET DE CIERRE
+    imprimirTicketCierreHTML({
+        fecha: new Date().toLocaleString('es-AR'),
+        cajero: cajeroActivoNombre,
+        fondoInicial: fondoInicialActual,
+        efectivoVentas: totales.efectivo,
+        qrVentas: totales.qr,
+        transfVentas: totales.transferencia,
+        totalGeneral: totalGeneral,
+        efectivoEsperado: esperado,
+        efectivoFisico: fisico,
+        diferencia: diferencia,
+        observaciones: observaciones,
+        conDetalle: conDetalle
+    });
+
+    cajaActualId = null;
+}
+
+function imprimirTicketCierreHTML(datos) {
+    const divTicket = document.getElementById('ticket-impresion');
+    if (!divTicket) return;
+    divTicket.className = `formato-${configComercio.formato}`;
+
+    divTicket.innerHTML = `
+        <div style="text-align:center; font-weight:bold; font-size:16px;">${configComercio.nombre.toUpperCase()}</div>
+        <div style="text-align:center; font-size:12px; font-weight:bold;">REPORTE DE CIERRE DE CAJA</div>
+        <div style="text-align:center; font-size:11px; margin-bottom:6px;">${configComercio.direccion}</div>
+        <div style="text-align:center; margin-bottom:6px;">--------------------------------</div>
+        <div>Fecha: ${datos.fecha}</div>
+        <div>Cajero: ${datos.cajero}</div>
+        <div style="text-align:center;">--------------------------------</div>
+        <div>Fondo Inicial: $${datos.fondoInicial}</div>
+        <div>Ventas Efectivo: $${datos.efectivoVentas}</div>
+        <div>Ventas QR: $${datos.qrVentas}</div>
+        <div>Ventas Transferencia: $${datos.transfVentas}</div>
+        <div style="font-weight:bold; margin-top:4px;">TOTAL VENTAS: $${datos.totalGeneral}</div>
+        <div style="text-align:center;">--------------------------------</div>
+        <div>Efectivo Esperado: $${datos.efectivoEsperado}</div>
+        <div>Efectivo Contado: $${datos.efectivoFisico}</div>
+        <div style="font-weight:bold;">Diferencia: $${datos.diferencia}</div>
+        ${datos.observaciones ? `<div style="margin-top:4px;"><small>Obs: ${datos.observaciones}</small></div>` : ''}
+        <div style="text-align:center; margin-top:15px; font-size:11px;">¡Turno finalizado con éxito!</div>
+    `;
+
+    window.print();
+}

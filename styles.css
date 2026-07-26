@@ -10,41 +10,31 @@ body {
     color: #333; 
 }
 
-/* Encabezado Adaptable */
+/* Encabezado */
 header { 
     background-color: #007bff; 
     color: white; 
-    padding: 12px 15px; 
+    padding: 15px 20px; 
     display: flex; 
     justify-content: space-between; 
     align-items: center; 
     box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-header h1 {
-    font-size: 18px;
-    margin: 0;
-    white-space: nowrap;
 }
 
 .nav-tabs { 
     display: flex; 
-    gap: 8px; 
+    gap: 10px; 
 }
 
 .tab-btn { 
     background: rgba(255,255,255,0.2); 
     color: white; 
     border: none; 
-    padding: 8px 12px; 
+    padding: 10px 18px; 
     border-radius: 5px; 
     cursor: pointer; 
     font-weight: bold; 
     transition: 0.2s; 
-    font-size: 12px;
-    white-space: nowrap;
 }
 
 .tab-btn:hover, .tab-btn.activo { 
@@ -54,37 +44,36 @@ header h1 {
 
 .container { 
     max-width: 1100px; 
-    margin: 15px auto; 
-    padding: 0 10px; 
+    margin: 20px auto; 
+    padding: 0 15px; 
 }
 
 /* Módulo de Ventas */
 .grid-ventas { 
     display: grid; 
     grid-template-columns: 1.8fr 1.2fr; 
-    gap: 15px; 
+    gap: 20px; 
 }
 
 .modulo-ventas, .modulo-carrito, .modulo-stock { 
     background: white; 
-    padding: 15px; 
+    padding: 20px; 
     border-radius: 8px; 
     box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
 }
 
-/* Buscador Desplegable */
+/* Buscador Desplegable estilo POS */
 .contenedor-buscador { 
     position: relative; 
-    margin-bottom: 20px; 
-    width: 100%;
+    margin-bottom: 25px; 
 }
 
 .buscador { 
     width: 100%; 
-    padding: 12px; 
+    padding: 14px; 
     border: 2px solid #007bff; 
     border-radius: 6px; 
-    font-size: 15px; 
+    font-size: 18px; 
     outline: none; 
 }
 
@@ -105,7 +94,7 @@ header h1 {
 }
 
 .item-resultado { 
-    padding: 10px 12px; 
+    padding: 12px 15px; 
     border-bottom: 1px solid #eee; 
     cursor: pointer; 
     display: flex; 
@@ -117,9 +106,9 @@ header h1 {
     background-color: #f0f7ff; 
 }
 
-/* Favoritos */
+/* Accesos Rápido / Favoritos */
 .titulo-favoritos { 
-    font-size: 13px; 
+    font-size: 14px; 
     font-weight: bold; 
     color: #666; 
     margin-bottom: 10px; 
@@ -129,18 +118,18 @@ header h1 {
 
 .grid-favoritos { 
     display: grid; 
-    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); 
-    gap: 8px; 
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); 
+    gap: 10px; 
 }
 
 .btn-favorito { 
     background: #e9ecef; 
     border: 1px solid #ced4da; 
-    padding: 10px 6px; 
+    padding: 12px 8px; 
     border-radius: 6px; 
     text-align: center; 
     cursor: pointer; 
-    font-size: 12px; 
+    font-size: 13px; 
     font-weight: bold; 
     transition: 0.2s; 
 }
@@ -151,18 +140,18 @@ header h1 {
     border-color: #007bff; 
 }
 
-/* Carrito */
+/* Carrito / Ticket de Venta */
 .tabla-carrito { 
     width: 100%; 
     border-collapse: collapse; 
-    margin-top: 10px; 
+    margin-top: 15px; 
 }
 
 .tabla-carrito th, .tabla-carrito td { 
-    padding: 8px 4px; 
+    padding: 10px 5px; 
     border-bottom: 1px solid #eee; 
     text-align: left; 
-    font-size: 13px; 
+    font-size: 14px; 
 }
 
 .btn-eliminar { 
@@ -176,8 +165,8 @@ header h1 {
 }
 
 .total-box { 
-    margin-top: 15px; 
-    font-size: 22px; 
+    margin-top: 20px; 
+    font-size: 24px; 
     font-weight: bold; 
     text-align: right; 
     color: #28a745; 
@@ -188,11 +177,11 @@ header h1 {
     background-color: #28a745; 
     color: white; 
     border: none; 
-    padding: 14px; 
+    padding: 15px; 
     font-size: 18px; 
     font-weight: bold; 
     border-radius: 6px; 
-    margin-top: 10px; 
+    margin-top: 15px; 
     cursor: pointer; 
 }
 
@@ -200,11 +189,7 @@ header h1 {
     background-color: #218838; 
 }
 
-/* Tabla de Stock para Computadora */
-.tabla-contenedor {
-    width: 100%;
-}
-
+/* Tablas e Interfaz General */
 .tabla-stock { 
     width: 100%; 
     border-collapse: collapse; 
@@ -213,9 +198,8 @@ header h1 {
 
 .tabla-stock th, .tabla-stock td { 
     border: 1px solid #eee; 
-    padding: 10px; 
+    padding: 12px; 
     text-align: left; 
-    font-size: 13px;
 }
 
 .tabla-stock th { 
@@ -226,11 +210,10 @@ header h1 {
     background: #28a745; 
     color: white; 
     border: none; 
-    padding: 8px 12px; 
+    padding: 10px 15px; 
     font-weight: bold; 
     border-radius: 5px; 
     cursor: pointer; 
-    font-size: 13px;
 }
 
 .seccion { 
@@ -241,7 +224,7 @@ header h1 {
     display: block; 
 }
 
-/* Modales */
+/* Modales Generales */
 .modal { 
     display: none; 
     position: fixed; 
@@ -253,27 +236,23 @@ header h1 {
     justify-content: center; 
     align-items: center; 
     z-index: 100; 
-    padding: 15px;
 }
 
 .modal-contenido { 
     background: white; 
-    padding: 20px; 
+    padding: 25px; 
     border-radius: 8px; 
-    width: 100%;
-    max-width: 400px; 
+    width: 400px; 
     display: flex; 
     flex-direction: column; 
-    gap: 10px; 
-    max-height: 90vh;
-    overflow-y: auto;
+    gap: 12px; 
 }
 
-.modal-contenido input, .modal-contenido select { 
-    padding: 10px; 
+.modal-contenido input { 
+    padding: 12px; 
     border: 1px solid #ccc; 
     border-radius: 5px; 
-    font-size: 15px; 
+    font-size: 16px; 
 }
 
 .modal-acciones { 
@@ -287,11 +266,11 @@ header h1 {
     background: #28a745; 
     color: white; 
     border: none; 
-    padding: 10px; 
+    padding: 12px; 
     border-radius: 5px; 
     font-weight: bold; 
     cursor: pointer; 
-    font-size: 15px; 
+    font-size: 16px; 
 }
 
 .btn-cancelar { 
@@ -299,29 +278,29 @@ header h1 {
     background: #dc3545; 
     color: white; 
     border: none; 
-    padding: 10px; 
+    padding: 12px; 
     border-radius: 5px; 
     font-weight: bold; 
     cursor: pointer; 
-    font-size: 15px; 
+    font-size: 16px; 
 }
 
-/* Modal Cobro */
+/* Modal de Cobro Específico */
 .medios-pago { 
     display: grid; 
     grid-template-columns: 1fr 1fr 1fr; 
-    gap: 8px; 
+    gap: 10px; 
     margin-bottom: 10px; 
 }
 
 .btn-pago { 
     border: 2px solid #ccc; 
     background: #f8f9fa; 
-    padding: 10px 4px; 
+    padding: 12px 5px; 
     border-radius: 6px; 
     font-weight: bold; 
     cursor: pointer; 
-    font-size: 12px; 
+    font-size: 13px; 
     text-align: center; 
 }
 
@@ -335,16 +314,14 @@ header h1 {
     display: flex; 
     gap: 5px; 
     margin-top: 5px; 
-    flex-wrap: wrap;
 }
 
 .btn-billete { 
-    flex: 1;
     background: #e9ecef; 
     border: 1px solid #ced4da; 
-    padding: 6px 8px; 
+    padding: 6px 10px; 
     border-radius: 4px; 
-    font-size: 11px; 
+    font-size: 12px; 
     font-weight: bold; 
     cursor: pointer; 
 }
@@ -352,138 +329,14 @@ header h1 {
 .box-vuelto { 
     background: #e8f5e9; 
     border: 1px solid #c8e6c9; 
-    padding: 10px; 
+    padding: 12px; 
     border-radius: 6px; 
     text-align: center; 
     margin-top: 10px; 
 }
 
 .monto-vuelto { 
-    font-size: 22px; 
+    font-size: 26px; 
     font-weight: bold; 
     color: #2e7d32; 
-}
-
-/* ===================================================
-   📱 MAGIA RESPONSIVE PARA CELULARES (Max Width 768px)
-   =================================================== */
-@media (max-width: 768px) {
-    header {
-        flex-direction: column;
-        align-items: stretch;
-        text-align: center;
-    }
-
-    .nav-tabs {
-        width: 100%;
-        justify-content: space-between;
-    }
-
-    .tab-btn {
-        flex: 1;
-        text-align: center;
-    }
-
-    .grid-ventas { 
-        grid-template-columns: 1fr; 
-    }
-
-    /* Transformación de Tabla de Stock a TARJETAS COMPACTAS */
-    .tabla-stock, .tabla-stock thead, .tabla-stock tbody, .tabla-stock th, .tabla-stock td, .tabla-stock tr { 
-        display: block; 
-    }
-
-    .tabla-stock thead tr { 
-        position: absolute;
-        top: -9999px;
-        left: -9999px;
-    }
-
-    .tabla-stock tr { 
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        margin-bottom: 12px;
-        padding: 12px;
-        background: #fff;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-
-    .tabla-stock td { 
-        border: none;
-        border-bottom: 1px solid #f0f0f0; 
-        position: relative;
-        padding: 8px 0;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 14px;
-    }
-
-    .tabla-stock td:last-child {
-        border-bottom: none;
-        margin-top: 8px;
-        justify-content: flex-end;
-    }
-
-    /* Etiquetas automáticas a la izquierda en móvil */
-    .tabla-stock td:nth-of-type(1):before { content: "Categoría:"; font-weight: bold; color: #666; }
-    .tabla-stock td:nth-of-type(2):before { content: "Barcode:"; font-weight: bold; color: #666; }
-    .tabla-stock td:nth-of-type(3):before { content: "Producto:"; font-weight: bold; color: #666; }
-    .tabla-stock td:nth-of-type(4):before { content: "Precio:"; font-weight: bold; color: #666; }
-    .tabla-stock td:nth-of-type(5):before { content: "Stock:"; font-weight: bold; color: #666; }
-
-    /* Ajuste del Panel de Aumento Masivo */
-    .panel-aumento-masivo {
-        flex-direction: column;
-        align-items: stretch !important;
-    }
-
-    .panel-aumento-masivo select, 
-    .panel-aumento-masivo input, 
-    .panel-aumento-masivo button {
-        width: 100% !important;
-    }
-}
-
-/* Estilos para el Ticket de Impresión */
-#ticket-impresion {
-    display: none;
-}
-
-/* Reglas especiales cuando se manda a IMPRIMIR */
-@media print {
-    body * {
-        visibility: hidden;
-    }
-    #ticket-impresion, #ticket-impresion * {
-        visibility: visible;
-    }
-    #ticket-impresion {
-        display: block !important;
-        position: absolute;
-        left: 0;
-        top: 0;
-        padding: 5px;
-        font-family: 'Courier New', Courier, monospace;
-        font-size: 12px;
-        color: #000;
-    }
-    
-    /* Anchos dinámicos según tiquetera */
-    #ticket-impresion.formato-58mm {
-        width: 48mm;
-        font-size: 11px;
-    }
-    #ticket-impresion.formato-80mm {
-        width: 72mm;
-        font-size: 13px;
-    }
-    #ticket-impresion.formato-a4 {
-        width: 100%;
-        font-size: 14px;
-    }
-
-    .no-print {
-        display: none !important;
-    }
 }
