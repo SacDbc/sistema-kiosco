@@ -340,3 +340,28 @@ header {
     font-weight: bold; 
     color: #2e7d32; 
 }
+
+/* Ocultar el ticket en la pantalla normal */
+#ticket-impresion {
+    display: none !important;
+}
+
+/* Mostrarlo únicamente al enviar a imprimir */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #ticket-impresion, #ticket-impresion * {
+        visibility: visible;
+        display: block !important;
+    }
+    #ticket-impresion {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+    .no-print {
+        display: none !important;
+    }
+}

@@ -21,6 +21,9 @@ let totalVentaActual = 0;
 let mostrandoSoloBajoStock = false;
 let modoRegistro = false;
 
+let cajaActualId = null;
+let fondoInicialActual = 0;
+
 let configComercio = {
     nombre: localStorage.getItem('cfg_nombre') || 'Kiosco En Línea',
     direccion: localStorage.getItem('cfg_direccion') || 'Atención al Cliente',
@@ -74,14 +77,13 @@ async function verificarOcrearPerfil(user) {
         return;
     }
 
-// B) DUEÑO DE COMERCIO
+    // B) DUEÑO DE COMERCIO
     let comercio;
     if (perfilUsuario.comercio_id) {
         let { data: c } = await db.from('comercios').select('*').eq('id', perfilUsuario.comercio_id).single();
         comercio = c;
     }
 
-    // Si no tiene comercio asignado, en lugar de crearlo solo, lo mandamos a la pantalla de bloqueo o aviso
     if (!comercio && perfilUsuario.rol === 'dueno') {
         document.getElementById('pantalla-login').style.display = 'none';
         document.getElementById('pantalla-bloqueo').style.display = 'flex';
@@ -149,7 +151,6 @@ async function manejarAuth(e) {
             return;
         }
 
-        // 1. Verificar si el email ya existe en perfiles
         const { data: perfilExistente } = await db.from('perfiles').select('id, email, comercio_id').eq('email', email).maybeSingle();
 
         if (perfilExistente && perfilExistente.comercio_id) {
@@ -159,14 +160,10 @@ async function manejarAuth(e) {
             return;
         }
 
-        // 2. Intentar registrar en Auth de Supabase
         const { data: authData, error: authError } = await db.auth.signUp({ email, password });
-        
         let userId = authData?.user?.id;
 
-        // Si el usuario ya estaba creado en Auth pero no tenía comercio completo
         if (authError && authError.message.includes("already registered")) {
-            // Hacemos un login rápido para obtener su ID
             const { data: loginData, error: loginError } = await db.auth.signInWithPassword({ email, password });
             if (loginError) {
                 alert("⚠️ Este correo ya está registrado. Ingresá tu contraseña correcta o contactate con administración.");
@@ -183,7 +180,6 @@ async function manejarAuth(e) {
         }
 
         if (userId) {
-            // 3. Crear el comercio nuevo vinculado a este usuario
             const { data: comercioCreado, error: comError } = await db.from('comercios').insert([{
                 nombre_comercio: nombreComercio,
                 dueno_id: userId,
@@ -191,7 +187,6 @@ async function manejarAuth(e) {
             }]).select().single();
 
             if (!comError && comercioCreado) {
-                // Actualizar o insertar el perfil asegurando que apunte al nuevo comercio
                 await db.from('perfiles').upsert([{
                     user_id: userId,
                     email: email,
@@ -266,7 +261,8 @@ function confirmarIngresoTurno() {
         actualizarNombreCajeroUI();
         aplicarPermisosVisuales();
         document.getElementById('pantalla-apertura-turno').style.display = 'none';
-        cambiarPestaña('ventas');
+        
+        verificarOForzarAperturaCaja();
     } else {
         alert("⚠️ PIN Incorrecto.");
     }
@@ -280,7 +276,8 @@ function ingresarComoDuenoDirecto() {
         actualizarNombreCajeroUI();
         aplicarPermisosVisuales();
         document.getElementById('pantalla-apertura-turno').style.display = 'none';
-        cambiarPestaña('ventas');
+        
+        verificarOForzarAperturaCaja();
     } else if (pin !== null) {
         alert("⚠️ PIN de Dueño incorrecto.");
     }
@@ -591,27 +588,11 @@ async function cargarTablaAdmin() {
             </td>
             <td>
                 ${estado === 'pendiente' ? `<button onclick="cambiarEstadoComercio(${c.id}, 'activo')" style="background:#28a745; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:5px;">✅ Dar de Alta</button>` : ''}
-                ${estado === 'activo' ? `<button onclick="cambiarEstadoComercio(${c.id}, 'vencido')" style="background:#dc3545; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">🚫 Suspender</button>` : ''}
-                ${estado === 'vencido' ? `<button onclick="cambiarEstadoComercio(${c.id}, 'activo')" style="background:#007bff; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">⚡ Reactivar Acceso</button>` : ''}
+                ${estado === 'activo' ? `<button onclick="cambiarEstadoComercio(${c.id}, 'vencido')" style="background:#dc3545; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:5px;">🚫 Suspender</button>` : ''}
+                ${estado === 'vencido' ? `<button onclick="cambiarEstadoComercio(${c.id}, 'activo')" style="background:#007bff; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:5px;">⚡ Reactivar</button>` : ''}
+                <button onclick="eliminarComercioAdmin(${c.id}, '${c.nombre_comercio}')" style="background:#343a40; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">🗑️ Eliminar</button>
             </td>
         `;
-// Dentro del bucle for (const c of comercios) en cargarTablaAdmin():
-tr.innerHTML = `
-    <td><strong>${c.nombre_comercio}</strong></td>
-    <td><small>${c.dueno_id}</small></td>
-    <td>
-        <span style="background:${badgeStyle}; color:white; padding:3px 8px; border-radius:4px; font-weight:bold; font-size:12px;">
-            ${badgeText}
-        </span>
-    </td>
-    <td>
-        ${estado === 'pendiente' ? `<button onclick="cambiarEstadoComercio(${c.id}, 'activo')" style="background:#28a745; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:5px;">✅ Dar de Alta</button>` : ''}
-        ${estado === 'activo' ? `<button onclick="cambiarEstadoComercio(${c.id}, 'vencido')" style="background:#dc3545; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:5px;">🚫 Suspender</button>` : ''}
-        ${estado === 'vencido' ? `<button onclick="cambiarEstadoComercio(${c.id}, 'activo')" style="background:#007bff; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:5px;">⚡ Reactivar</button>` : ''}
-        
-        <button onclick="eliminarComercioAdmin(${c.id}, '${c.nombre_comercio}')" style="background:#343a40; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">🗑️ Eliminar</button>
-    </td>
-`;
         tbody.appendChild(tr);
     }
 }
@@ -625,7 +606,6 @@ async function cambiarEstadoComercio(idComercio, nuevoEstado) {
 async function cargarCategorias() {
     if (!comercioActualId) return;
 
-    // Traer categorías oficiales guardadas en la BD de forma limpia (sin inserciones automáticas)
     let { data, error } = await db.from('categorias').select('*').eq('comercio_id', comercioActualId).order('nombre', { ascending: true });
 
     if (error) {
@@ -634,21 +614,17 @@ async function cargarCategorias() {
 
     categoriasGlobales = data || [];
 
-    // Si la lista viene vacía, aseguramos al menos "General" en memoria para los selectores
     if (categoriasGlobales.length === 0) {
         categoriasGlobales = [{ nombre: 'General' }];
     }
 
-    // Poblar todos los selects y la lista visual del modal
     poblarSelectoresCategorias(categoriasGlobales);
     renderizarListaCategoriasModal();
 }
 
 function poblarSelectoresCategorias(lista) {
-    // Asegurar que siempre haya al menos una categoría por defecto si la lista viene vacía
     const categoriasValidas = (lista && lista.length > 0) ? lista : [{ nombre: 'General' }];
 
-    // Select de Nuevo/Editar Producto
     const selectProd = document.getElementById('p-categoria-select');
     if (selectProd) {
         const valorActual = selectProd.value;
@@ -666,7 +642,6 @@ function poblarSelectoresCategorias(lista) {
         }
     }
 
-    // Select del Aumento Masivo en Stock
     const selectAumento = document.getElementById('aumento-categoria');
     if (selectAumento) {
         const valorActualAumento = selectAumento.value;
@@ -800,10 +775,8 @@ function filtrarTablaStock() {
 
 /* LÓGICA DE CARRITO Y COMBOS */
 function agregarAlCarrito(producto, cantidad = 1) {
-    // 🔒 Validación estricta de caja abierta
     if (!cajaActualId) {
-        alert("⚠️ ATENCIÓN: La caja se encuentra cerrada. Debes abrir un turno e ingresar el fondo inicial antes de comenzar a vender.");
-        solicitarAperturaTurno(); // O puedes llamar a abrirModalAperturaCaja()
+        abrirModalAperturaCaja();
         return;
     }	
     const existe = carrito.find(item => item.id === producto.id);
@@ -948,10 +921,8 @@ function solicitarCantidadYAgregar(producto) {
 }
 
 function abrirModalCobro() {
-    // 🔒 Validación estricta de caja abierta
     if (!cajaActualId) {
-        alert("⚠️ ATENCIÓN: La caja se encuentra cerrada. Debes abrir un turno e ingresar el fondo inicial antes de comenzar a vender.");
-        solicitarAperturaTurno(); // O puedes llamar a abrirModalAperturaCaja()
+        abrirModalAperturaCaja();
         return;
     }
     if (carrito.length === 0) return alert("El carrito está vacío.");
@@ -1029,13 +1000,13 @@ async function confirmarVentaFinal() {
         }
 
         const registroVenta = {
-   		 user_id: usuarioActual.id,
-    		comercio_id: comercioActualId, // <--- Esto es vital
-    		vendedor_nombre: cajeroActivoNombre,
-    		monto_total: totalVentaActual,
-    	medio_pago: medioPagoSeleccionado,
-    		items: carrito.map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio }))
-	};
+            user_id: usuarioActual.id,
+            comercio_id: comercioActualId,
+            vendedor_nombre: cajeroActivoNombre,
+            monto_total: totalVentaActual,
+            medio_pago: medioPagoSeleccionado,
+            items: carrito.map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio }))
+        };
 
         await db.from('ventas').insert([registroVenta]);
 
@@ -1125,6 +1096,8 @@ async function cargarHistorialVentas() {
 
     ventasGlobales = data || [];
     renderizarHistorial(ventasGlobales);
+
+    await cargarHistorialCierres();
 }
 
 function renderizarHistorial(ventas) {
@@ -1220,7 +1193,6 @@ async function abrirModalEditar(id) {
     document.getElementById('p-id').value = prod.id;
     document.getElementById('p-nombre').value = prod.nombre;
     
-    // Seleccionar la categoría exacta del producto editado
     const selectCat = document.getElementById('p-categoria-select');
     if (selectCat) {
         selectCat.value = prod.categoria || 'General';
@@ -1339,7 +1311,6 @@ async function crearCategoria() {
     const nombre = document.getElementById('nueva-cat-nombre').value.trim();
     if (!nombre) return alert("Ingresá un nombre de categoría.");
 
-    // 1. Verificamos si ya existe para este comercio
     const { data: existente } = await db.from('categorias')
         .select('id')
         .eq('comercio_id', comercioActualId)
@@ -1351,7 +1322,6 @@ async function crearCategoria() {
         return;
     }
 
-    // 2. Si no existe, la insertamos limpiamente
     const { error } = await db.from('categorias').insert([{ 
         user_id: usuarioActual ? usuarioActual.id : null, 
         comercio_id: comercioActualId, 
@@ -1438,7 +1408,6 @@ async function procesarArchivoCSV() {
             const filasValidas = [];
             const categoriasSet = new Set();
 
-            // PASO 1: Leer el archivo y extraer filas y categorías únicas
             for (let i = 1; i < lineas.length; i++) {
                 const linea = lineas[i].trim();
                 if (!linea) continue;
@@ -1471,21 +1440,18 @@ async function procesarArchivoCSV() {
                 return;
             }
 
-            // PASO 2: Agregar las categorías descubiertas exclusivamente para este comercio
             btn.innerText = "Registrando categorías...";
             for (const catNombre of categoriasSet) {
-                // Verificamos si la categoría ya existe PARA ESTE COMERCIO ESPECÍFICO
                 const { data: existente } = await db.from('categorias')
                     .select('id')
-                    .eq('comercio_id', comercioActualId) // <--- Filtro estricto por el ID del comercio actual
+                    .eq('comercio_id', comercioActualId)
                     .eq('nombre', catNombre)
                     .maybeSingle();
 
-                // Si NO existe para este comercio, la creamos de forma independiente
                 if (!existente) {
                     const { error: errCat } = await db.from('categorias').insert([{ 
                         user_id: usuarioActual ? usuarioActual.id : null, 
-                        comercio_id: comercioActualId, // <--- Vinculada al comercio actual
+                        comercio_id: comercioActualId, 
                         nombre: catNombre 
                     }]);
 
@@ -1495,11 +1461,9 @@ async function procesarArchivoCSV() {
                 }
             }
 
-            // PASO 3: Procesar e insertar/actualizar inteligentemente los productos
             btn.innerText = "Actualizando inventario...";
             
             for (const p of filasValidas) {
-                // Buscamos si ya existe un producto con el mismo código de barras para este comercio
                 let query = db.from('productos')
                     .select('id')
                     .eq('comercio_id', comercioActualId);
@@ -1524,10 +1488,8 @@ async function procesarArchivoCSV() {
                 };
 
                 if (prodExistente) {
-                    // Si ya existe, lo ACTUALIZAMOS (refresca precio y stock con los nuevos valores del CSV)
                     await db.from('productos').update(datosProducto).eq('id', prodExistente.id);
                 } else {
-                    // Si no existe, lo INSERTA como nuevo producto
                     await db.from('productos').insert([datosProducto]);
                 }
             }
@@ -1551,19 +1513,15 @@ async function procesarArchivoCSV() {
 
 async function eliminarComercioAdmin(idComercio, nombreComercio) {
     if (confirm(`⚠️ ¿Estás seguro de eliminar por completo el comercio "${nombreComercio}" y todos sus datos asociados? Esta acción no se puede deshacer.`)) {
-        
-        // 1. Opcional: Desvincular o eliminar el perfil asociado a este comercio primero
         await db.from('perfiles').update({ comercio_id: null }).eq('comercio_id', idComercio);
-
-        // 2. Borramos el comercio de la tabla principal
         const { error } = await db.from('comercios').delete().eq('id', idComercio);
         
         if (error) {
             alert("Error al eliminar el comercio: " + error.message);
         } else {
             alert(`El comercio "${nombreComercio}" fue eliminado correctamente.`);
-            cargarTablaAdmin(); // Recarga la tabla del panel
-            cargarComerciosSoporte(); // Actualiza el selector superior si corresponde
+            cargarTablaAdmin();
+            cargarComerciosSoporte();
         }
     }
 }
@@ -1616,7 +1574,6 @@ function exportarProductosCSV() {
         csvContent += `${nombre},${categoria},${precio},${stock},${stockMin},${codigo}\n`;
     });
 
-    // Limpiamos el nombre del comercio para que sea apto para un nombre de archivo (reemplazando espacios y sin tildes raras)
     const nombreLimpio = (configComercio.nombre || `comercio_${comercioActualId}`)
         .toLowerCase()
         .replace(/[^a-z0-9]/g, '_');
@@ -1631,10 +1588,7 @@ function exportarProductosCSV() {
     document.body.removeChild(link);
 }
 
-let cajaActualId = null;
-let fondoInicialActual = 0;
-
-// 1. APERTURA DE CAJA
+/* APERTURA Y ARQUEO DE CAJA */
 function abrirModalAperturaCaja() {
     document.getElementById('input-fondo-inicial').value = '0';
     document.getElementById('modal-apertura-caja').style.display = 'flex';
@@ -1660,16 +1614,12 @@ async function confirmarAperturaCajaOficial() {
         cajaActualId = data.id;
         document.getElementById('modal-apertura-caja').style.display = 'none';
         alert(`¡Caja abierta con éxito por ${cajeroActivoNombre} con un fondo de $${fondo}!`);
+        cambiarPestaña('ventas');
     }
 }
 
-// Interceptar cuando el cajero ingresa correctamente su PIN para abrir turno
-// (Puedes llamar a abrirModalAperturaCaja() justo después de confirmar el PIN en tu función confirmarIngresoTurno)
-
-// 2. PREparar Y ABRIR MODAL DE CIERRE
 async function abrirModalCierreCaja() {
     if (!cajaActualId) {
-        // Si no hay registro de caja abierto, buscamos el último abierto del comercio
         const { data: abierta } = await db.from('cajas')
             .select('*')
             .eq('comercio_id', comercioActualId)
@@ -1685,8 +1635,6 @@ async function abrirModalCierreCaja() {
         }
     }
 
-    // Calcular las ventas realizadas en el turno actual (efectivo, qr, transferencia)
-    // Para simplificar y hacerlo robusto, tomamos las ventas del día o de la sesión actual
     const { data: ventasTurno } = await db.from('ventas')
         .select('*')
         .eq('comercio_id', comercioActualId);
@@ -1699,9 +1647,8 @@ async function abrirModalCierreCaja() {
         else if (v.medio_pago === 'Transferencia') tTransf += monto;
     });
 
-    // Guardamos totales calculados temporalmente en el modal
     window.tempTotalesTurno = { efectivo: tEfectivo, qr: tQr, transferencia: tTransf };
-    let retirosEfectivo = 0; // Podés conectar esto a una tabla de retiros si lo deseas
+    let retirosEfectivo = 0;
 
     const efectivoEsperado = fondoInicialActual + tEfectivo - retirosEfectivo;
 
@@ -1743,7 +1690,6 @@ function calcularDiferenciaArqueo() {
     }
 }
 
-// 3. CONFIRMAR CIERRE Y GUARDAR / IMPRIMIR TICKET
 async function confirmarCierreCajaOficial(conDetalle = false) {
     const fisico = Number(document.getElementById('input-dinero-fisico').value) || 0;
     const esperado = window.tempEfectivoEsperado || 0;
@@ -1769,7 +1715,6 @@ async function confirmarCierreCajaOficial(conDetalle = false) {
     alert("¡Caja cerrada y arqueo guardado con éxito!");
     cerrarModalCierreCaja();
 
-    // IMPRIMIR TICKET DE CIERRE
     imprimirTicketCierreHTML({
         fecha: new Date().toLocaleString('es-AR'),
         cajero: cajeroActivoNombre,
@@ -1877,4 +1822,21 @@ function reimprimirCierre(c) {
         observaciones: c.observaciones,
         conDetalle: false
     });
+}
+
+async function verificarOForzarAperturaCaja() {
+    const { data: abierta } = await db.from('cajas')
+        .select('*')
+        .eq('comercio_id', comercioActualId)
+        .eq('estado', 'abierta')
+        .order('id', { ascending: false })
+        .maybeSingle();
+
+    if (abierta) {
+        cajaActualId = abierta.id;
+        fondoInicialActual = abierta.monto_inicial || 0;
+        cambiarPestaña('ventas');
+    } else {
+        abrirModalAperturaCaja();
+    }
 }
