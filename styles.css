@@ -365,3 +365,41 @@ header {
         display: none !important;
     }
 }
+
+/* Corrección de impresión para tiqueteras y A4 */
+@media print {
+    body * {
+        visibility: hidden !important;
+    }
+    #ticket-impresion, #ticket-impresion * {
+        visibility: visible !important;
+        display: block !important;
+    }
+    #ticket-impresion {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 5px !important;
+    }
+    
+    /* Tamaños específicos según configuración */
+    #ticket-impresion.formato-80mm {
+        max-width: 72mm !important;
+        margin: 0 auto !important;
+        font-family: 'Courier New', Courier, monospace !important;
+        font-size: 12px !important;
+    }
+    
+    #ticket-impresion.formato-58mm {
+        max-width: 48mm !important;
+        margin: 0 auto !important;
+        font-family: 'Courier New', Courier, monospace !important;
+        font-size: 10px !important;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+}

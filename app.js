@@ -1093,12 +1093,84 @@ async function cargarHistorialVentas() {
 
     if (!comercioActualId) return;
 
-    const { data } = await db.from('ventas').select('*').eq('comercio_id', comercioActualId).order('id', { ascending: false }).limit(50);
+    // 1. Obtener la caja abierta actual para saber cuándo empezó el turno
+    const { data: cajaAbierta } = await db.from('cajas')
+        .select('*')
+        .eq('comercio_id', comercioActualId)
+        .eq('estado', 'abierta')
+        .order('id', { ascending: false })
+        .maybeSingle();
 
-    ventasGlobales = data || [];
-    renderizarHistorial(ventasGlobales);
+    const timestampApertura = cajaAbierta ? cajaAbierta.created_at : null;
+
+    // 2. Cargar las últimas ventas generales para la tabla inferior (historial reciente)
+    const { data: ventasRecientes } = await db.from('ventas')
+        .select('*')
+        .eq('comercio_id', comercioActualId)
+        .order('id', { ascending: false })
+        .limit(50);
+
+    ventasGlobales = ventasRecientes || [];
+    renderizarTablaHistorialReciente(ventasGlobales);
+
+    // 3. Consultar específicamente las ventas DEL TURNO ACTUAL para los paneles superiores
+    let queryVentasTurno = db.from('ventas')
+        .select('*')
+        .eq('comercio_id', comercioActualId);
+
+    if (timestampApertura) {
+        queryVentasTurno = queryVentasTurno.gte('created_at', timestampApertura);
+    }
+
+    const { data: ventasDelTurno } = await queryVentasTurno;
+    calcularYMostrarTotalesTurnoActual(ventasDelTurno || []);
 
     await cargarHistorialCierres();
+}
+
+function renderizarTablaHistorialReciente(ventas) {
+    const tbody = document.getElementById('tabla-body-historial');
+    tbody.innerHTML = '';
+
+    if (ventas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#888;">No hay ventas registradas aún.</td></tr>';
+        return;
+    }
+
+    ventas.forEach(v => {
+        const monto = Number(v.monto_total) || 0;
+        const fechaObj = new Date(v.created_at);
+        const fechaHora = fechaObj.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        const detalleItems = (v.items || []).map(i => `${i.cantidad}x ${i.nombre}`).join(', ');
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><small style="color:#666;">${fechaHora}</small></td>
+            <td><span style="background:#e9ecef; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:12px;">${v.vendedor_nombre || 'Dueño'}</span></td>
+            <td><strong>${v.medio_pago}</strong></td>
+            <td><span style="font-size:13px; color:#333;">${detalleItems}</span></td>
+            <td><strong style="color:#28a745;">$${monto}</strong></td>
+            <td>
+                <button onclick="reimprimirTicketHistorial(${v.id})" style="background:#17a2b8; color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-size:12px; font-weight:bold;">🧾 Ticket</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function calcularYMostrarTotalesTurnoActual(ventasTurno) {
+    let total = 0, efectivo = 0, qr = 0, transf = 0;
+
+    ventasTurno.forEach(v => {
+        const monto = Number(v.monto_total) || 0;
+        total += monto;
+
+        if (v.medio_pago === 'Efectivo') efectivo += monto;
+        else if (v.medio_pago === 'QR') qr += monto;
+        else if (v.medio_pago === 'Transferencia') transf += monto;
+    });
+
+    actualizarTotalesCaja(total, efectivo, qr, transf);
 }
 
 function renderizarHistorial(ventas) {
