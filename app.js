@@ -1459,21 +1459,21 @@ async function procesarArchivoCSV() {
                 return;
             }
 
-            // PASO 2: Agregar las categorías descubiertas a la tabla correspondiente en Supabase
+            // PASO 2: Agregar las categorías descubiertas exclusivamente para este comercio
             btn.innerText = "Registrando categorías...";
             for (const catNombre of categoriasSet) {
-                // Verificamos si ya existe para este comercio
+                // Verificamos si ya existe EXACTAMENTE para este comercio_id
                 const { data: existente } = await db.from('categorias')
                     .select('id')
-                    .eq('comercio_id', comercioActualId)
+                    .eq('comercio_id', comercioActualId) // <--- Filtro estricto por comercio
                     .eq('nombre', catNombre)
                     .maybeSingle();
 
-                // Si no existe, la insertamos formalmente
+                // Si no existe PARA ESTE COMERCIO, la creamos
                 if (!existente) {
                     const { error: errCat } = await db.from('categorias').insert([{ 
                         user_id: usuarioActual ? usuarioActual.id : null, 
-                        comercio_id: comercioActualId, 
+                        comercio_id: comercioActualId, // <--- Asociadas al comercio actual
                         nombre: catNombre 
                     }]);
 
