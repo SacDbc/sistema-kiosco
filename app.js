@@ -1462,18 +1462,18 @@ async function procesarArchivoCSV() {
             // PASO 2: Agregar las categorías descubiertas exclusivamente para este comercio
             btn.innerText = "Registrando categorías...";
             for (const catNombre of categoriasSet) {
-                // Verificamos si ya existe EXACTAMENTE para este comercio_id
+                // Verificamos si la categoría ya existe PARA ESTE COMERCIO ESPECÍFICO
                 const { data: existente } = await db.from('categorias')
                     .select('id')
-                    .eq('comercio_id', comercioActualId) // <--- Filtro estricto por comercio
+                    .eq('comercio_id', comercioActualId) // <--- Filtro estricto por el ID del comercio actual
                     .eq('nombre', catNombre)
                     .maybeSingle();
 
-                // Si no existe PARA ESTE COMERCIO, la creamos
+                // Si NO existe para este comercio, la creamos de forma independiente
                 if (!existente) {
                     const { error: errCat } = await db.from('categorias').insert([{ 
                         user_id: usuarioActual ? usuarioActual.id : null, 
-                        comercio_id: comercioActualId, // <--- Asociadas al comercio actual
+                        comercio_id: comercioActualId, // <--- Vinculada al comercio actual
                         nombre: catNombre 
                     }]);
 
