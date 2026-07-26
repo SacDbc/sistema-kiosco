@@ -23,6 +23,7 @@ let modoRegistro = false;
 
 let cajaActualId = null;
 let fondoInicialActual = 0;
+let cajaAperturaTimestamp = null; // Control estricto de la hora de apertura del turno
 
 let configComercio = {
     nombre: localStorage.getItem('cfg_nombre') || 'Kiosco En Línea',
@@ -1612,6 +1613,7 @@ async function confirmarAperturaCajaOficial() {
         alert("Error al abrir la caja: " + error.message);
     } else {
         cajaActualId = data.id;
+        cajaAperturaTimestamp = data.created_at; // Guardamos la hora exacta de apertura
         document.getElementById('modal-apertura-caja').style.display = 'none';
         alert(`¡Caja abierta con éxito por ${cajeroActivoNombre} con un fondo de $${fondo}!`);
         cambiarPestaña('ventas');
@@ -1619,6 +1621,8 @@ async function confirmarAperturaCajaOficial() {
 }
 
 async function abrirModalCierreCaja() {
+    let cajaAbierta = null;
+
     if (!cajaActualId) {
         const { data: abierta } = await db.from('cajas')
             .select('*')
@@ -1628,16 +1632,36 @@ async function abrirModalCierreCaja() {
             .maybeSingle();
 
         if (abierta) {
+            cajaAbierta = abierta;
             cajaActualId = abierta.id;
             fondoInicialActual = abierta.monto_inicial || 0;
+            cajaAperturaTimestamp = abierta.created_at;
         } else {
             fondoInicialActual = 0;
         }
+    } else {
+        // Consultar la caja actual para asegurar el timestamp de apertura
+        const { data: abierta } = await db.from('cajas')
+            .select('*')
+            .eq('id', cajaActualId)
+            .maybeSingle();
+        if (abierta) {
+            cajaAbierta = abierta;
+            cajaAperturaTimestamp = abierta.created_at;
+            fondoInicialActual = abierta.monto_inicial || 0;
+        }
     }
 
-    const { data: ventasTurno } = await db.from('ventas')
+    // Filtrar estrictamente las ventas realizadas SÓLO desde la apertura de esta caja actual
+    let queryVentas = db.from('ventas')
         .select('*')
         .eq('comercio_id', comercioActualId);
+
+    if (cajaAperturaTimestamp) {
+        queryVentas = queryVentas.gte('created_at', cajaAperturaTimestamp);
+    }
+
+    const { data: ventasTurno } = await queryVentas;
 
     let tEfectivo = 0, tQr = 0, tTransf = 0;
     (ventasTurno || []).forEach(v => {
@@ -1648,8 +1672,9 @@ async function abrirModalCierreCaja() {
     });
 
     window.tempTotalesTurno = { efectivo: tEfectivo, qr: tQr, transferencia: tTransf };
-    let retirosEfectivo = 0;
+    let retirosEfectivo = 0; 
 
+    // CORRECCIÓN: El efectivo esperado en caja SOLO suma el fondo inicial + las ventas en EFECTIVO (excluyendo QR y Transferencias)
     const efectivoEsperado = fondoInicialActual + tEfectivo - retirosEfectivo;
 
     document.getElementById('cierre-cajero').innerText = cajeroActivoNombre;
@@ -1731,6 +1756,7 @@ async function confirmarCierreCajaOficial(conDetalle = false) {
     });
 
     cajaActualId = null;
+    cajaAperturaTimestamp = null;
 }
 
 function imprimirTicketCierreHTML(datos) {
@@ -1835,6 +1861,7 @@ async function verificarOForzarAperturaCaja() {
     if (abierta) {
         cajaActualId = abierta.id;
         fondoInicialActual = abierta.monto_inicial || 0;
+        cajaAperturaTimestamp = abierta.created_at;
         cambiarPestaña('ventas');
     } else {
         abrirModalAperturaCaja();
