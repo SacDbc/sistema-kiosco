@@ -224,68 +224,142 @@
             </div>
         </section>
 
-        <section id="seccion-historial" class="seccion">
-            <div class="modulo-stock">
-                <h2>📊 Cierre de Caja e Historial de Ventas</h2>
-                
-                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px; margin:20px 0;">
-                    <div style="background:#28a745; color:white; padding:15px; border-radius:8px; text-align:center;">
-                        <small>TOTAL FACTURADO</small>
-                        <div style="font-size:26px; font-weight:bold;" id="caja-total">$0</div>
-                    </div>
-		    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-    			<h2>📊 Cierre de Caja e Historial de Ventas</h2>
-    			<button onclick="abrirModalCierreCaja()" style="background:#dc3545; color:white; border:none; padding:10px 15px; 			border-radius:6px; font-weight:bold; cursor:pointer;">🔒 Realizar Cierre y Arqueo</button>
-			</div>	
-                    <div style="background:#e9ecef; border:1px solid #ccc; padding:15px; border-radius:8px; text-align:center;">
-                        <small>💵 EFECTIVO</small>
-                        <div style="font-size:22px; font-weight:bold; color:#28a745;" id="caja-efectivo">$0</div>
-                    </div>
-                    <div style="background:#e9ecef; border:1px solid #ccc; padding:15px; border-radius:8px; text-align:center;">
-                        <small>📲 MERCADO PAGO / QR</small>
-                        <div style="font-size:22px; font-weight:bold; color:#007bff;" id="caja-qr">$0</div>
-                    </div>
-                    <div style="background:#e9ecef; border:1px solid #ccc; padding:15px; border-radius:8px; text-align:center;">
-                        <small>🏦 TRANSFERENCIAS</small>
-                        <div style="font-size:22px; font-weight:bold; color:#17a2b8;" id="caja-transf">$0</div>
-                    </div>
-                </div>
+<section id="seccion-historial" class="seccion">
+<div id="seccion-historial" class="seccion">
+    <h2>📊 Cierre de Caja e Historial de Ventas</h2>
 
-                <h3>📜 Últimas Ventas Registradas</h3>
-                <div class="tabla-contenedor" style="margin-top:10px;">
-                    <table class="tabla-stock">
-                        <thead>
-                            <tr>
-                                <th>Fecha/Hora</th>
-                                <th>Cajero</th>
-                                <th>Medio de Pago</th>
-                                <th>Detalle de Productos</th>
-                                <th>Total Venta</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabla-body-historial"></tbody>
-                    </table>
-                </div>
+    <!-- Paneles Superiores de Totales -->
+    <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px; align-items: center;">
+        <div style="background: #28a745; color: white; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px; text-align: center;">
+            <div style="font-size: 12px; font-weight: bold;">TOTAL FACTURADO</div>
+            <div id="caja-total" style="font-size: 22px; font-weight: bold;">$0</div>
+        </div>
+
+        <!-- Botón de Cierre (Se removió el texto duplicado que estaba al lado) -->
+        <div>
+            <button onclick="abrirModalCierreCaja()" style="background: #dc3545; color: white; border: none; padding: 15px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px;">
+                🔒 Realizar Cierre y Arqueo
+            </button>
+        </div>
+
+        <div style="background: #f8f9fa; border: 1px solid #ccc; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px; text-align: center;">
+            <div style="font-size: 12px; font-weight: bold; color: #28a745;">EFECTIVO</div>
+            <div id="caja-efectivo" style="font-size: 22px; font-weight: bold; color: #28a745;">$0</div>
+        </div>
+
+        <div style="background: #f8f9fa; border: 1px solid #ccc; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px; text-align: center;">
+            <div style="font-size: 12px; font-weight: bold; color: #007bff;">MERCADO PAGO / QR</div>
+            <div id="caja-qr" style="font-size: 22px; font-weight: bold; color: #007bff;">$0</div>
+        </div>
+
+        <div style="background: #f8f9fa; border: 1px solid #ccc; padding: 15px; border-radius: 8px; flex: 1; min-width: 150px; text-align: center;">
+            <div style="font-size: 12px; font-weight: bold; color: #555;">TRANSFERENCIAS</div>
+            <div id="caja-transf" style="font-size: 22px; font-weight: bold; color: #555;">$0</div>
+        </div>
+    </div>
+
+    <!-- Tabla 1: Últimas Ventas Registradas (Con Scroll) -->
+    <h3>📜 Últimas Ventas Registradas</h3>
+    <div class="contenedor-tabla-scroll">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #f8f9fa; text-align: left;">
+                    <th>Fecha/Hora</th>
+                    <th>Cajero</th>
+                    <th>Medio de Pago</th>
+                    <th>Detalle de Productos</th>
+                    <th>Total Venta</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-body-historial">
+                <!-- Dinámico -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Tabla 2: Historial de Cierres de Caja Anteriores (Con Scroll) -->
+    <h3 style="margin-top: 30px;">📑 Historial de Cierres de Caja Anteriores</h3>
+    <div class="contenedor-tabla-scroll">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #f8f9fa; text-align: left;">
+                    <th>Fecha Cierre</th>
+                    <th>Cajero</th>
+                    <th>Fondo Inicial</th>
+                    <th>Total Ventas</th>
+                    <th>Efectivo Físico</th>
+                    <th>Diferencia</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-body-cierres">
+                <!-- Dinámico -->
+            </tbody>
+        </table>
+    </div>
+</div>
+    <div class="modulo-stock">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+            <h2>📊 Cierre de Caja e Historial de Ventas</h2>
+            <button onclick="abrirModalCierreCaja()" style="background:#dc3545; color:white; border:none; padding:10px 18px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:14px; box-shadow:0 2px 5px rgba(0,0,0,0.15);">🔒 Realizar Cierre y Arqueo</button>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px; margin:20px 0;">
+            <div style="background:#28a745; color:white; padding:15px; border-radius:8px; text-align:center;">
+                <small>TOTAL FACTURADO</small>
+                <div style="font-size:26px; font-weight:bold;" id="caja-total">$0</div>
             </div>
-            <h3 style="margin-top:30px;">📑 Historial de Cierres de Caja Anteriores</h3>
-            <div class="tabla-contenedor" style="margin-top:10px;">
-    		<table class="tabla-stock">
-        		<thead>
-            			<tr>
-             			   <th>Fecha Cierre</th>
-            			   <th>Cajero</th>
-           			   <th>Fondo Inicial</th>
-                		   <th>Total Ventas</th>
-                		   <th>Efectivo Físico</th>
-                		   <th>Diferencia</th>
-                		   <th>Acciones</th>
-            			</tr>
-       			</thead>
-        		<tbody id="tabla-body-cierres"></tbody>
-    	    </table>
-	    </div>
-        </section>
+            <div style="background:#e9ecef; border:1px solid #ccc; padding:15px; border-radius:8px; text-align:center;">
+                <small>💵 EFECTIVO</small>
+                <div style="font-size:22px; font-weight:bold; color:#28a745;" id="caja-efectivo">$0</div>
+            </div>
+            <div style="background:#e9ecef; border:1px solid #ccc; padding:15px; border-radius:8px; text-align:center;">
+                <small>📲 MERCADO PAGO / QR</small>
+                <div style="font-size:22px; font-weight:bold; color:#007bff;" id="caja-qr">$0</div>
+            </div>
+            <div style="background:#e9ecef; border:1px solid #ccc; padding:15px; border-radius:8px; text-align:center;">
+                <small>🏦 TRANSFERENCIAS</small>
+                <div style="font-size:22px; font-weight:bold; color:#17a2b8;" id="caja-transf">$0</div>
+            </div>
+        </div>
+
+        <h3>📜 Últimas Ventas Registradas</h3>
+        <div class="tabla-contenedor" style="margin-top:10px;">
+            <table class="tabla-stock">
+                <thead>
+                    <tr>
+                        <th>Fecha/Hora</th>
+                        <th>Cajero</th>
+                        <th>Medio de Pago</th>
+                        <th>Detalle de Productos</th>
+                        <th>Total Venta</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-body-historial"></tbody>
+            </table>
+        </div>
+
+        <h3 style="margin-top:30px;">📑 Historial de Cierres de Caja Anteriores</h3>
+        <div class="tabla-contenedor" style="margin-top:10px;">
+            <table class="tabla-stock">
+                <thead>
+                    <tr>
+                        <th>Fecha Cierre</th>
+                        <th>Cajero</th>
+                        <th>Fondo Inicial</th>
+                        <th>Total Ventas</th>
+                        <th>Efectivo Físico</th>
+                        <th>Diferencia</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-body-cierres"></tbody>
+            </table>
+        </div>
+    </div>
+</section>      
 
         <section id="seccion-vendedores" class="seccion">
             <div class="modulo-stock">

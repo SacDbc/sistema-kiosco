@@ -403,3 +403,19 @@ header {
         display: none !important;
     }
 }
+
+.contenedor-tabla-scroll {
+    max-height: 350px; /* Altura máxima antes de mostrar el scroll */
+    overflow-y: auto;  /* Habilita el scroll vertical */
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    margin-bottom: 20px;
+}
+
+/* Opcional para que la cabecera de la tabla quede fija al hacer scroll */
+.contenedor-tabla-scroll table thead th {
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+    z-index: 1;
+}
