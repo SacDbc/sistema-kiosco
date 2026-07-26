@@ -1538,3 +1538,61 @@ async function eliminarComercioAdmin(idComercio, nombreComercio) {
         }
     }
 }
+
+function filtrarStockBajo() {
+    const btn = document.querySelector('button[onclick="filtrarStockBajo()"]');
+    if (!btn) return;
+    
+    mostrandoSoloBajoStock = !mostrandoSoloBajoStock;
+
+    if (mostrandoSoloBajoStock) {
+        btn.style.background = '#dc3545';
+        btn.style.color = 'white';
+        btn.innerText = "📦 Ver Todo el Stock";
+
+        const filtrados = productosGlobales.filter(p => {
+            const stockMin = p.stock_minimo !== undefined ? p.stock_minimo : 3;
+            return p.stock <= stockMin && p.comercio_id === comercioActualId;
+        });
+        renderizarTablaStock(filtrados);
+    } else {
+        btn.style.background = '#ffc107';
+        btn.style.color = '#333';
+        btn.innerText = "⚠️ Ver Bajo Stock / Reponer";
+        renderizarTablaStock(productosGlobales);
+    }
+}
+
+function exportarProductosCSV() {
+    if (!comercioActualId) {
+        return alert("⚠️ No hay un comercio seleccionado para exportar.");
+    }
+
+    const productosDelComercio = productosGlobales.filter(p => p.comercio_id === comercioActualId);
+
+    if (productosDelComercio.length === 0) {
+        return alert("⚠️ No hay productos en el inventario de este comercio para exportar.");
+    }
+
+    let csvContent = "nombre,categoria,precio,stock,stock_minimo,codigo_barras\n";
+
+    productosDelComercio.forEach(p => {
+        const nombre = `"${(p.nombre || '').replace(/"/g, '""')}"`;
+        const categoria = `"${(p.categoria || 'General').replace(/"/g, '""')}"`;
+        const precio = p.precio || 0;
+        const stock = p.stock || 0;
+        const stockMin = p.stock_minimo !== undefined ? p.stock_minimo : 3;
+        const codigo = p.codigo_barras ? `"${p.codigo_barras}"` : '""';
+
+        csvContent += `${nombre},${categoria},${precio},${stock},${stockMin},${codigo}\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `inventario_comercio_${comercioActualId}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
