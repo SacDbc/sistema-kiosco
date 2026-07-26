@@ -1587,11 +1587,16 @@ function exportarProductosCSV() {
         csvContent += `${nombre},${categoria},${precio},${stock},${stockMin},${codigo}\n`;
     });
 
+    // Limpiamos el nombre del comercio para que sea apto para un nombre de archivo (reemplazando espacios y sin tildes raras)
+    const nombreLimpio = (configComercio.nombre || `comercio_${comercioActualId}`)
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '_');
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `inventario_comercio_${comercioActualId}.csv`);
+    link.setAttribute("download", `inventario_${nombreLimpio}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
