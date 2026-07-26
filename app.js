@@ -1483,32 +1483,49 @@ async function procesarArchivoCSV() {
                 }
             }
 
-            // PASO 3: Procesar internamente e insertar los productos vinculados
-            btn.innerText = "Cargando productos...";
-            const nuevosProductos = filasValidas.map(p => ({
-                user_id: usuarioActual.id,
-                comercio_id: comercioActualId,
-                nombre: p.nombre,
-                categoria: p.categoria,
-                precio: p.precio,
-                stock: p.stock,
-                stock_minimo: 3,
-                codigo_barras: p.codigo_barras
-            }));
+            // PASO 3: Procesar e insertar/actualizar inteligentemente los productos
+            btn.innerText = "Actualizando inventario...";
+            
+            for (const p of filasValidas) {
+                // Buscamos si ya existe un producto con el mismo código de barras para este comercio
+                let query = db.from('productos')
+                    .select('id')
+                    .eq('comercio_id', comercioActualId);
 
-            const { error: errProd } = await db.from('productos').insert(nuevosProductos);
+                if (p.codigo_barras) {
+                    query = query.eq('codigo_barras', p.codigo_barras);
+                } else {
+                    query = query.eq('nombre', p.nombre);
+                }
 
-            if (errProd) {
-                alert("⚠️ Error al guardar los productos: " + errProd.message);
-            } else {
-                alert(`¡Éxito! Se registraron las categorías y se importaron ${nuevosProductos.length} productos correctamente.`);
-                cerrarModalImportar();
-                
-                // PASO 4: Refrescar la interfaz por completo
-                await cargarCategorias();
-                await cargarProductos();
-                renderizarTablaStock(productosGlobales);
+                const { data: prodExistente } = await query.maybeSingle();
+
+                const datosProducto = {
+                    user_id: usuarioActual.id,
+                    comercio_id: comercioActualId,
+                    nombre: p.nombre,
+                    categoria: p.categoria,
+                    precio: p.precio,
+                    stock: p.stock,
+                    stock_minimo: 3,
+                    codigo_barras: p.codigo_barras
+                };
+
+                if (prodExistente) {
+                    // Si ya existe, lo ACTUALIZAMOS (refresca precio y stock con los nuevos valores del CSV)
+                    await db.from('productos').update(datosProducto).eq('id', prodExistente.id);
+                } else {
+                    // Si no existe, lo INSERTA como nuevo producto
+                    await db.from('productos').insert([datosProducto]);
+                }
             }
+
+            alert(`¡Importación procesada con éxito! Los productos nuevos fueron agregados y los existentes se actualizaron correctamente.`);
+            cerrarModalImportar();
+            
+            await cargarCategorias();
+            await cargarProductos();
+            renderizarTablaStock(productosGlobales);
         } catch (err) {
             alert("Error al procesar el archivo CSV: " + err.message);
         } finally {
