@@ -482,14 +482,17 @@ function cambiarComercioSoporte() {
     cargarTodo();
 }
 
-function cambiarPestaña(tab) {
+async function cambiarPestaña(tab) {
     document.querySelectorAll('.seccion').forEach(s => s.classList.remove('activa'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('activo'));
 
     if (tab === 'ventas') {
         document.getElementById('seccion-ventas').classList.add('activa');
         document.getElementById('btn-tab-ventas').classList.add('activo');
-        document.getElementById('buscador').focus();
+        
+        // 🔎 Verificación obligatoria de caja abierta al entrar a ventas
+        await verificarOForzarAperturaCajaEnVentas();
+        
     } else if (tab === 'stock') {
         document.getElementById('seccion-stock').classList.add('activa');
         document.getElementById('btn-tab-stock').classList.add('activo');
@@ -1685,10 +1688,18 @@ async function confirmarAperturaCajaOficial() {
         alert("Error al abrir la caja: " + error.message);
     } else {
         cajaActualId = data.id;
-        cajaAperturaTimestamp = data.created_at; // Guardamos la hora exacta de apertura
+        cajaAperturaTimestamp = data.created_at;
         document.getElementById('modal-apertura-caja').style.display = 'none';
+        
+        // Reactivar buscador en el punto de venta
+        const inputBuscador = document.getElementById('buscador');
+        if (inputBuscador) {
+            inputBuscador.disabled = false;
+            inputBuscador.placeholder = "⚡ Pistoleá código o busca (ej: 5*codigo)...";
+            inputBuscador.focus();
+        }
+
         alert(`¡Caja abierta con éxito por ${cajeroActivoNombre} con un fondo de $${fondo}!`);
-        cambiarPestaña('ventas');
     }
 }
 
@@ -1936,6 +1947,44 @@ async function verificarOForzarAperturaCaja() {
         cajaAperturaTimestamp = abierta.created_at;
         cambiarPestaña('ventas');
     } else {
+        abrirModalAperturaCaja();
+    }
+}
+
+async function verificarOForzarAperturaCajaEnVentas() {
+    if (!comercioActualId) return;
+
+    const { data: abierta } = await db.from('cajas')
+        .select('*')
+        .eq('comercio_id', comercioActualId)
+        .eq('estado', 'abierta')
+        .order('id', { ascending: false })
+        .maybeSingle();
+
+    const inputBuscador = document.getElementById('buscador');
+
+    if (abierta) {
+        cajaActualId = abierta.id;
+        fondoInicialActual = abierta.monto_inicial || 0;
+        cajaAperturaTimestamp = abierta.created_at;
+        
+        // Habilitar buscador si está abierto
+        if (inputBuscador) {
+            inputBuscador.disabled = false;
+            inputBuscador.placeholder = "⚡ Pistoleá código o busca (ej: 5*codigo)...";
+            inputBuscador.focus();
+        }
+    } else {
+        cajaActualId = null;
+        cajaAperturaTimestamp = null;
+        
+        // Bloquear buscador visualmente hasta que abra caja
+        if (inputBuscador) {
+            inputBuscador.disabled = true;
+            inputBuscador.placeholder = "🔒 Caja cerrada. Debes abrir caja para vender...";
+        }
+
+        // Lanzar el modal de apertura de caja de inmediato
         abrirModalAperturaCaja();
     }
 }
