@@ -800,6 +800,12 @@ function filtrarTablaStock() {
 
 /* LÓGICA DE CARRITO Y COMBOS */
 function agregarAlCarrito(producto, cantidad = 1) {
+    // 🔒 Validación estricta de caja abierta
+    if (!cajaActualId) {
+        alert("⚠️ ATENCIÓN: La caja se encuentra cerrada. Debes abrir un turno e ingresar el fondo inicial antes de comenzar a vender.");
+        solicitarAperturaTurno(); // O puedes llamar a abrirModalAperturaCaja()
+        return;
+    }	
     const existe = carrito.find(item => item.id === producto.id);
     if (existe) {
         existe.cantidad += cantidad;
@@ -942,6 +948,12 @@ function solicitarCantidadYAgregar(producto) {
 }
 
 function abrirModalCobro() {
+    // 🔒 Validación estricta de caja abierta
+    if (!cajaActualId) {
+        alert("⚠️ ATENCIÓN: La caja se encuentra cerrada. Debes abrir un turno e ingresar el fondo inicial antes de comenzar a vender.");
+        solicitarAperturaTurno(); // O puedes llamar a abrirModalAperturaCaja()
+        return;
+    }
     if (carrito.length === 0) return alert("El carrito está vacío.");
 
     document.getElementById('modal-total-pagar').innerText = totalVentaActual;
@@ -1803,4 +1815,66 @@ function imprimirTicketCierreHTML(datos) {
     `;
 
     window.print();
+}
+
+async function cargarHistorialCierres() {
+    if (!comercioActualId) return;
+
+    const { data: cierres } = await db.from('cajas')
+        .select('*')
+        .eq('comercio_id', comercioActualId)
+        .eq('estado', 'cerrada')
+        .order('id', { ascending: false })
+        .limit(20);
+
+    const tbody = document.getElementById('tabla-body-cierres');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!cierres || cierres.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#888;">No hay cierres de caja registrados aún.</td></tr>';
+        return;
+    }
+
+    cierres.forEach(c => {
+        const fechaObj = new Date(c.closed_at || c.created_at);
+        const fechaFormateada = fechaObj.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        
+        let colorDif = 'green';
+        let textoDif = `$${c.diferencia}`;
+        if (c.diferencia < 0) { colorDif = 'red'; textoDif = `Faltante: $${c.diferencia}`; }
+        else if (c.diferencia > 0) { colorDif = 'blue'; textoDif = `Sobrante: +$${c.diferencia}`; }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><small>${fechaFormateada}</small></td>
+            <td><strong>${c.vendedor_nombre}</strong></td>
+            <td>$${c.monto_inicial}</td>
+            <td><strong style="color:#28a745;">$${c.total_general}</strong></td>
+            <td>$${c.monto_final_declarado}</td>
+            <td><span style="color:${colorDif}; font-weight:bold;">${textoDif}</span></td>
+            <td>
+                <button onclick='reimprimirCierre(${JSON.stringify(c)})' style="background:#17a2b8; color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-size:12px; font-weight:bold;">🧾 Reimprimir</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function reimprimirCierre(c) {
+    const fechaObj = new Date(c.closed_at || c.created_at);
+    imprimirTicketCierreHTML({
+        fecha: fechaObj.toLocaleString('es-AR'),
+        cajero: c.vendedor_nombre,
+        fondoInicial: c.monto_inicial,
+        efectivoVentas: c.total_efectivo,
+        qrVentas: c.total_qr,
+        transfVentas: c.total_transferencia,
+        totalGeneral: c.total_general,
+        efectivoEsperado: Number(c.monto_inicial) + Number(c.total_efectivo),
+        efectivoFisico: c.monto_final_declarado,
+        diferencia: c.diferencia,
+        observaciones: c.observaciones,
+        conDetalle: false
+    });
 }
