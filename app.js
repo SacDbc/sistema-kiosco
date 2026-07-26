@@ -74,23 +74,21 @@ async function verificarOcrearPerfil(user) {
         return;
     }
 
-    // B) DUEÑO DE COMERCIO
+// B) DUEÑO DE COMERCIO
     let comercio;
     if (perfilUsuario.comercio_id) {
         let { data: c } = await db.from('comercios').select('*').eq('id', perfilUsuario.comercio_id).single();
         comercio = c;
     }
 
+    // Si no tiene comercio asignado, en lugar de crearlo solo, lo mandamos a la pantalla de bloqueo o aviso
     if (!comercio && perfilUsuario.rol === 'dueno') {
-        const nombreLocal = localStorage.getItem('temp_nombre_comercio') || 'Mi Kiosco';
-        const { data: cNuevo } = await db.from('comercios').insert([{
-            nombre_comercio: nombreLocal,
-            dueno_id: user.id,
-            estado_suscripcion: 'pendiente'
-        }]).select().single();
-
-        comercio = cNuevo;
-        await db.from('perfiles').update({ comercio_id: comercio.id }).eq('id', perfilUsuario.id);
+        document.getElementById('pantalla-login').style.display = 'none';
+        document.getElementById('pantalla-bloqueo').style.display = 'flex';
+        document.getElementById('titulo-bloqueo').innerText = "Comercio no Vinculado";
+        document.getElementById('mensaje-bloqueo').innerText = "Tu usuario no tiene un comercio asociado. Contactate con administración.";
+        document.getElementById('app-principal').style.display = 'none';
+        return;
     }
 
     comercioObjeto = comercio;
@@ -1019,13 +1017,13 @@ async function confirmarVentaFinal() {
         }
 
         const registroVenta = {
-            user_id: usuarioActual.id,
-            comercio_id: comercioActualId,
-            vendedor_nombre: cajeroActivoNombre,
-            monto_total: totalVentaActual,
-            medio_pago: medioPagoSeleccionado,
-            items: carrito.map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio }))
-        };
+   		 user_id: usuarioActual.id,
+    		comercio_id: comercioActualId, // <--- Esto es vital
+    		vendedor_nombre: cajeroActivoNombre,
+    		monto_total: totalVentaActual,
+    	medio_pago: medioPagoSeleccionado,
+    		items: carrito.map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio }))
+	};
 
         await db.from('ventas').insert([registroVenta]);
 
