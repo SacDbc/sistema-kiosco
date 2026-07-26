@@ -1988,3 +1988,11 @@ async function verificarOForzarAperturaCajaEnVentas() {
         abrirModalAperturaCaja();
     }
 }
+
+function cambiarCajeroDesdeModalApertura() {
+    // Cierra el modal de apertura momentáneamente
+    document.getElementById('modal-apertura-caja').style.display = 'none';
+    
+    // Llama a la pantalla de selección de turno/cajero que ya tienes creada
+    solicitarAperturaTurno();
+}
