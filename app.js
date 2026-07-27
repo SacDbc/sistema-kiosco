@@ -1185,13 +1185,14 @@ function actualizarTotalesCaja(total, efectivo, qr, transf) {
 async function actualizarResumenVentasPOS() {
     if (!comercioActualId) return;
 
+    // Tomar las ventas de las últimas 24 horas o del día corriente para que el cajero siempre vea movimiento real
+    const hoyInicio = new Date();
+    hoyInicio.setHours(0, 0, 0, 0);
+
     let queryVentas = db.from('ventas')
         .select('*')
-        .eq('comercio_id', comercioActualId);
-
-    if (cajaAperturaTimestamp) {
-        queryVentas = queryVentas.gte('created_at', cajaAperturaTimestamp);
-    }
+        .eq('comercio_id', comercioActualId)
+        .gte('created_at', hoyInicio.toISOString());
 
     const { data: ventasTurno } = await queryVentas;
 
@@ -1998,18 +1999,19 @@ async function verificarOForzarAperturaCajaEnVentas() {
             inputBuscador.focus();
         }
     } else {
-        cajaActualId = null;
-        cajaAperturaTimestamp = null;
-        
-        // Si ya hay una sesión activa de Dueño, permitimos ver con caja cerrada sin forzar modal molesto tras recargar
+        // Si el usuario activo es el Dueño, le permitimos operar sin molestar con la apertura obligatoria
         if (cajeroActivoNombre === 'Dueño') {
             if (inputBuscador) {
                 inputBuscador.disabled = false;
                 inputBuscador.placeholder = "⚡ (Caja Cerrada) Pistoleá código o busca...";
             }
+            await actualizarResumenVentasPOS();
             return;
         }
 
+        cajaActualId = null;
+        cajaAperturaTimestamp = null;
+        
         if (inputBuscador) {
             inputBuscador.disabled = true;
             inputBuscador.placeholder = "🔒 Caja cerrada. Debes abrir caja para vender...";
@@ -2017,6 +2019,8 @@ async function verificarOForzarAperturaCajaEnVentas() {
 
         abrirModalAperturaCaja();
     }
+
+    await actualizarResumenVentasPOS();
 }
 
 function cambiarCajeroDesdeModalApertura() {
