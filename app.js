@@ -278,7 +278,8 @@ function ingresarComoDuenoDirecto() {
         aplicarPermisosVisuales();
         document.getElementById('pantalla-apertura-turno').style.display = 'none';
         
-        verificarOForzarAperturaCaja();
+        // 👑 EL DUEÑO ENTRA DIRECTO AL SISTEMA SIN FORZAR CAJA ABIERTA
+        cambiarPestaña('ventas');
     } else if (pin !== null) {
         alert("⚠️ PIN de Dueño incorrecto.");
     }
@@ -1672,7 +1673,14 @@ function abrirModalAperturaCaja() {
 }
 
 async function confirmarAperturaCajaOficial() {
-    const fondo = Number(document.getElementById('input-fondo-inicial').value) || 0;
+    const inputFondo = document.getElementById('input-fondo-inicial');
+    if (inputFondo.value === "") {
+        alert("⚠️ Por favor ingresá un monto para el fondo inicial (puedes poner 0 si no hay efectivo).");
+        inputFondo.focus();
+        return;
+    }
+
+    const fondo = Number(inputFondo.value) || 0;
     fondoInicialActual = fondo;
 
     const datosCaja = {
@@ -1691,7 +1699,6 @@ async function confirmarAperturaCajaOficial() {
         cajaAperturaTimestamp = data.created_at;
         document.getElementById('modal-apertura-caja').style.display = 'none';
         
-        // Reactivar buscador en el punto de venta
         const inputBuscador = document.getElementById('buscador');
         if (inputBuscador) {
             inputBuscador.disabled = false;
