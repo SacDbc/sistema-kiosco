@@ -1697,8 +1697,11 @@ async function confirmarAperturaCajaOficial() {
     } else {
         cajaActualId = data.id;
         cajaAperturaTimestamp = data.created_at;
+        
+        // 🔒 OCULTAR EL MODAL DE APERTURA AL INSTANTE
         document.getElementById('modal-apertura-caja').style.display = 'none';
         
+        // Reactivar buscador en el punto de venta
         const inputBuscador = document.getElementById('buscador');
         if (inputBuscador) {
             inputBuscador.disabled = false;
