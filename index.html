@@ -19,7 +19,8 @@
                 <input type="text" id="auth-comercio" placeholder="Nombre de tu Kiosco / Comercio" style="padding:12px; border:1px solid #ccc; border-radius:6px; font-size:15px; width:100%;">
             </div>
             <input type="email" id="auth-email" placeholder="Correo Electrónico" required style="padding:12px; border:1px solid #ccc; border-radius:6px; font-size:15px;">
-            <input type="password" id="auth-password" placeholder="Contraseña" required style="padding:12px; border:1px solid #ccc; border-radius:6px; font-size:15px;">
+            <!-- AGREGADO AUTOCOMPLETE -->
+            <input type="password" id="auth-password" placeholder="Contraseña" autocomplete="new-password" required style="padding:12px; border:1px solid #ccc; border-radius:6px; font-size:15px;">
 
             <button type="submit" id="btn-auth-submit" style="background:#007bff; color:white; border:none; padding:12px; font-size:16px; font-weight:bold; border-radius:6px; cursor:pointer;">Ingresar</button>
         </form>
@@ -51,7 +52,8 @@
 
         <div id="bloque-ingreso-pin-apertura" style="display:none; background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #ddd; margin-bottom:15px;">
             <div style="font-weight:bold; color:#333; margin-bottom:8px;" id="label-cajero-seleccionado">Ingresá tu PIN</div>
-            <input type="password" id="input-pin-apertura" maxlength="6" placeholder="****" style="padding:10px; font-size:22px; text-align:center; width:120px; border:2px solid #007bff; border-radius:6px; outline:none; letter-spacing:5px;">
+            <!-- AGREGADO AUTOCOMPLETE -->
+            <input type="password" id="input-pin-apertura" maxlength="6" placeholder="****" autocomplete="new-password" style="padding:10px; font-size:22px; text-align:center; width:120px; border:2px solid #007bff; border-radius:6px; outline:none; letter-spacing:5px;">
             <div style="margin-top:10px; display:flex; gap:10px; justify-content:center;">
                 <button onclick="confirmarIngresoTurno()" style="background:#28a745; color:white; border:none; padding:10px 20px; border-radius:6px; font-weight:bold; cursor:pointer;">✔ Entrar a Caja</button>
                 <button onclick="cancelarSeleccionCajero()" style="background:#6c757d; color:white; border:none; padding:10px 15px; border-radius:6px; cursor:pointer;">Cancelar</button>
@@ -431,7 +433,8 @@
             <input type="text" id="vend-nombre" placeholder="Ej: Vendedor1">
             
             <label style="font-size:12px; font-weight:bold; color:#666;">PIN DE ACCESO (4-6 dígitos):</label>
-            <input type="password" id="vend-pin" maxlength="6" placeholder="Ej: 1234">
+            <!-- AGREGADO AUTOCOMPLETE -->
+            <input type="password" id="vend-pin" maxlength="6" placeholder="Ej: 1234" autocomplete="new-password">
 
             <div style="background:#f8f9fa; border:1px solid #e2e8f0; padding:12px; border-radius:6px; margin:15px 0;">
                 <strong style="display:block; margin-bottom:8px; font-size:13px; color:#334155;">🔑 Módulos Permitidos para este usuario:</strong>
@@ -465,7 +468,8 @@
             <label style="font-size:12px; font-weight:bold; color:#666;">DIRECCIÓN O LEYENDA:</label>
             <input type="text" id="cfg-direccion" placeholder="Ej: Av. San Martín 1234">
             <label style="font-size:12px; font-weight:bold; color:#666;">PIN DE DUEÑO / ADMINISTRADOR:</label>
-            <input type="password" id="cfg-pin-dueno" placeholder="Ej: 0000" maxlength="6">
+            <!-- AGREGADO AUTOCOMPLETE -->
+            <input type="password" id="cfg-pin-dueno" placeholder="Ej: 0000" maxlength="6" autocomplete="new-password">
             <label style="font-size:12px; font-weight:bold; color:#666;">TIPO DE IMPRESORA:</label>
             <select id="cfg-formato-impresora" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px; outline:none;">
                 <option value="80mm">Tiquetera Térmica 80mm (Estándar)</option>
