@@ -1185,14 +1185,18 @@ function actualizarTotalesCaja(total, efectivo, qr, transf) {
 async function actualizarResumenVentasPOS() {
     if (!comercioActualId) return;
 
-    // Tomar las ventas de las últimas 24 horas o del día corriente para que el cajero siempre vea movimiento real
-    const hoyInicio = new Date();
-    hoyInicio.setHours(0, 0, 0, 0);
-
+    // Si tenemos una caja abierta, filtramos estrictamente desde el momento exacto de apertura de esa caja
     let queryVentas = db.from('ventas')
         .select('*')
-        .eq('comercio_id', comercioActualId)
-        .gte('created_at', hoyInicio.toISOString());
+        .eq('comercio_id', comercioActualId);
+
+    if (cajaAperturaTimestamp) {
+        queryVentas = queryVentas.gte('created_at', cajaAperturaTimestamp);
+    } else {
+        // Si no hay caja abierta registrada, no muestra acumulados viejos
+        actualizarTotalesPOSUI(0, 0, 0, 0);
+        return;
+    }
 
     const { data: ventasTurno } = await queryVentas;
 
@@ -1206,6 +1210,10 @@ async function actualizarResumenVentasPOS() {
         else if (v.medio_pago === 'Transferencia') transf += monto;
     });
 
+    actualizarTotalesPOSUI(total, efectivo, qr, transf);
+}
+
+function actualizarTotalesPOSUI(total, efectivo, qr, transf) {
     const elTotal = document.getElementById('pos-caja-total');
     const elEfectivo = document.getElementById('pos-caja-efectivo');
     const elQr = document.getElementById('pos-caja-qr');
@@ -1215,20 +1223,6 @@ async function actualizarResumenVentasPOS() {
     if (elEfectivo) elEfectivo.innerText = `$${efectivo}`;
     if (elQr) elQr.innerText = `$${qr}`;
     if (elTransf) elTransf.innerText = `$${transf}`;
-}
-
-function reimprimirTicketHistorial(idVenta) {
-    const venta = ventasGlobales.find(v => v.id === idVenta);
-    if (!venta) return;
-
-    const fechaObj = new Date(venta.created_at);
-    imprimirTicketHTML({
-        fecha: fechaObj.toLocaleString('es-AR'),
-        cajero: venta.vendedor_nombre || 'Dueño',
-        medio_pago: venta.medio_pago,
-        items: venta.items || [],
-        total: venta.monto_total
-    });
 }
 
 /* MODALES PRODUCTO */
