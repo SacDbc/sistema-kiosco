@@ -1698,6 +1698,13 @@ async function confirmarAperturaCajaOficial() {
     const fondo = Number(inputFondo.value) || 0;
     fondoInicialActual = fondo;
 
+    // 🧹 PASO DE LIMPIEZA: Por seguridad, cerramos cualquier caja fantasma o abierta anterior que haya quedado colgada en este comercio
+    await db.from('cajas')
+        .update({ estado: 'cerrada', closed_at: new Date().toISOString(), observaciones: 'Cierre automático por apertura de nueva caja' })
+        .eq('comercio_id', comercioActualId)
+        .eq('estado', 'abierta');
+
+    // Crear la nueva caja única abierta
     const datosCaja = {
         comercio_id: comercioActualId,
         vendedor_nombre: cajeroActivoNombre,
@@ -1955,11 +1962,13 @@ function reimprimirCierre(c) {
 }
 
 async function verificarOForzarAperturaCaja() {
+    // Buscar si ya hay una caja abierta para este comercio
     const { data: abierta } = await db.from('cajas')
         .select('*')
         .eq('comercio_id', comercioActualId)
         .eq('estado', 'abierta')
         .order('id', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
     if (abierta) {
@@ -1979,11 +1988,13 @@ async function verificarOForzarAperturaCaja() {
 async function verificarOForzarAperturaCajaEnVentas() {
     if (!comercioActualId) return;
 
+    // Buscar caja abierta actual
     const { data: abierta } = await db.from('cajas')
         .select('*')
         .eq('comercio_id', comercioActualId)
         .eq('estado', 'abierta')
         .order('id', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
     const inputBuscador = document.getElementById('buscador');
@@ -1999,7 +2010,6 @@ async function verificarOForzarAperturaCajaEnVentas() {
             inputBuscador.focus();
         }
     } else {
-        // Si el usuario activo es el Dueño, le permitimos operar sin molestar con la apertura obligatoria
         if (cajeroActivoNombre === 'Dueño') {
             if (inputBuscador) {
                 inputBuscador.disabled = false;
