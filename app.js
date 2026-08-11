@@ -334,18 +334,13 @@ async function confirmarIngresoTurno() {
 }
 
 async function ingresarComoDuenoDirecto() {
-    const pin = await mostrarPrompt("Ingresá tu PIN de Dueño / Administrador:", "Área Protegida");
-    if (pin === configComercio.pinDueno) {
-        cajeroActivoNombre = 'Dueño';
-        cajeroActivoObjeto = null;
-        actualizarNombreCajeroUI();
-        aplicarPermisosVisuales();
-        document.getElementById('pantalla-apertura-turno').style.display = 'none';
-        
-        cambiarPestaña('ventas');
-    } else if (pin !== null && pin !== "") {
-        await mostrarAlerta("⚠️ PIN de Dueño incorrecto.");
-    }
+    cajeroActivoNombre = 'Dueño';
+    cajeroActivoObjeto = null;
+    actualizarNombreCajeroUI();
+    aplicarPermisosVisuales();
+    document.getElementById('pantalla-apertura-turno').style.display = 'none';
+    
+    cambiarPestaña('ventas');
 }
 
 function aplicarPermisosVisuales() {
@@ -847,7 +842,7 @@ function filtrarTablaStock() {
 
 /* LÓGICA DE CARRITO Y COMBOS */
 function agregarAlCarrito(producto, cantidad = 1) {
-    if (!cajaActualId) {
+    if (cajeroActivoNombre !== 'Dueño' && !cajaActualId) {
         abrirModalAperturaCaja();
         return;
     }	
@@ -993,7 +988,7 @@ async function solicitarCantidadYAgregar(producto) {
 }
 
 function abrirModalCobro() {
-    if (!cajaActualId) {
+    if (cajeroActivoNombre !== 'Dueño' && !cajaActualId) {
         abrirModalAperturaCaja();
         return;
     }
@@ -1161,13 +1156,14 @@ function enviarTicketWhatsApp(telefono, items, total) {
     window.open(url, '_blank');
 }
 
-/* HISTORIAL */
+/* HISTORIAL Y SUPERVISIÓN */
 async function cargarHistorialVentas() {
     const tbody = document.getElementById('tabla-body-historial');
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Cargando historial...</td></tr>';
 
     if (!comercioActualId) return;
 
+    // Buscar si hay caja abierta por algún vendedor
     const { data: cajaAbierta } = await db.from('cajas')
         .select('*')
         .eq('comercio_id', comercioActualId)
@@ -1176,6 +1172,17 @@ async function cargarHistorialVentas() {
         .maybeSingle();
 
     const timestampApertura = cajaAbierta ? cajaAbierta.created_at : null;
+
+    // Actualizar Panel de Supervisión para el Dueño
+    const textoSupervision = document.getElementById('texto-supervision-estado');
+    if (textoSupervision) {
+        if (cajaAbierta) {
+            const horaApertura = new Date(cajaAbierta.created_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+            textoSupervision.innerHTML = `Turno activo atendido por: <strong style="color:#007bff; font-size:15px;">👤 ${cajaAbierta.vendedor_nombre}</strong> | Abierto a las <strong>${horaApertura} hs</strong> | Fondo inicial: <strong>$${cajaAbierta.monto_inicial}</strong>`;
+        } else {
+            textoSupervision.innerHTML = `ℹ️ No hay ningún turno de vendedor abierto en este momento. El sistema está operando en modo libre.`;
+        }
+    }
 
     const { data: ventasRecientes } = await db.from('ventas')
         .select('*')
@@ -1254,6 +1261,24 @@ function actualizarTotalesCaja(total, efectivo, qr, transf) {
 
 async function actualizarResumenVentasPOS() {
     if (!comercioActualId) return;
+
+    if (cajeroActivoNombre === 'Dueño') {
+        const { data: ventasHoy } = await db.from('ventas')
+            .select('*')
+            .eq('comercio_id', comercioActualId)
+            .gte('created_at', new Date().toISOString().split('T')[0]);
+
+        let total = 0, efectivo = 0, qr = 0, transf = 0;
+        (ventasHoy || []).forEach(v => {
+            const monto = Number(v.monto_total) || 0;
+            total += monto;
+            if (v.medio_pago === 'Efectivo') efectivo += monto;
+            else if (v.medio_pago === 'QR') qr += monto;
+            else if (v.medio_pago === 'Transferencia') transf += monto;
+        });
+        actualizarTotalesPOSUI(total, efectivo, qr, transf);
+        return;
+    }
 
     let queryVentas = db.from('ventas')
         .select('*')
@@ -1818,32 +1843,20 @@ async function confirmarAperturaCajaOficial() {
 async function abrirModalCierreCaja() {
     let cajaAbierta = null;
 
-    if (!cajaActualId) {
-        const { data: abierta } = await db.from('cajas')
-            .select('*')
-            .eq('comercio_id', comercioActualId)
-            .eq('estado', 'abierta')
-            .order('id', { ascending: false })
-            .maybeSingle();
+    const { data: abierta } = await db.from('cajas')
+        .select('*')
+        .eq('comercio_id', comercioActualId)
+        .eq('estado', 'abierta')
+        .order('id', { ascending: false })
+        .maybeSingle();
 
-        if (abierta) {
-            cajaAbierta = abierta;
-            cajaActualId = abierta.id;
-            fondoInicialActual = abierta.monto_inicial || 0;
-            cajaAperturaTimestamp = abierta.created_at;
-        } else {
-            fondoInicialActual = 0;
-        }
+    if (abierta) {
+        cajaAbierta = abierta;
+        cajaActualId = abierta.id;
+        fondoInicialActual = abierta.monto_inicial || 0;
+        cajaAperturaTimestamp = abierta.created_at;
     } else {
-        const { data: abierta } = await db.from('cajas')
-            .select('*')
-            .eq('id', cajaActualId)
-            .maybeSingle();
-        if (abierta) {
-            cajaAbierta = abierta;
-            cajaAperturaTimestamp = abierta.created_at;
-            fondoInicialActual = abierta.monto_inicial || 0;
-        }
+        fondoInicialActual = 0;
     }
 
     let queryVentas = db.from('ventas')
@@ -1866,22 +1879,36 @@ async function abrirModalCierreCaja() {
 
     window.tempTotalesTurno = { efectivo: tEfectivo, qr: tQr, transferencia: tTransf };
     let retirosEfectivo = 0; 
-
     const efectivoEsperado = fondoInicialActual + tEfectivo - retirosEfectivo;
 
-    document.getElementById('cierre-cajero').innerText = cajeroActivoNombre;
+    const nombreTurno = cajaAbierta ? cajaAbierta.vendedor_nombre : 'Ninguno (Turno Libre)';
+    document.getElementById('cierre-cajero').innerText = nombreTurno;
     document.getElementById('cierre-fondo').innerText = `$${fondoInicialActual}`;
     document.getElementById('cierre-ventas-efectivo').innerText = `$${tEfectivo}`;
     document.getElementById('cierre-retiros').innerText = `$${retirosEfectivo}`;
     document.getElementById('cierre-esperado').innerText = `$${efectivoEsperado}`;
     
-    document.getElementById('input-dinero-fisico').value = '';
-    document.getElementById('cierre-diferencia').innerText = '$0';
-    document.getElementById('input-obs-cierre').value = '';
+    // Adaptar modal si entra el Dueño
+    const bloqueArqueo = document.getElementById('bloque-arqueo-fisico');
+    const bloqueSupervision = document.getElementById('bloque-solo-supervision');
+    const tituloModal = document.getElementById('titulo-modal-cierre');
+
+    if (cajeroActivoNombre === 'Dueño') {
+        tituloModal.innerText = '👑 Supervisión y Cierre de Turno';
+        bloqueArqueo.style.display = 'none';
+        bloqueSupervision.style.display = 'block';
+    } else {
+        tituloModal.innerText = '🔒 Cierre y Arqueo de Caja';
+        bloqueArqueo.style.display = 'block';
+        bloqueSupervision.style.display = 'none';
+        document.getElementById('input-dinero-fisico').value = '';
+        document.getElementById('cierre-diferencia').innerText = '$0';
+        document.getElementById('input-obs-cierre').value = '';
+        setTimeout(() => document.getElementById('input-dinero-fisico').focus(), 100);
+    }
 
     window.tempEfectivoEsperado = efectivoEsperado;
     document.getElementById('modal-cierre-caja').style.display = 'flex';
-    setTimeout(() => document.getElementById('input-dinero-fisico').focus(), 100);
 }
 
 function cerrarModalCierreCaja() {
@@ -1908,10 +1935,19 @@ function calcularDiferenciaArqueo() {
 }
 
 async function confirmarCierreCajaOficial(conDetalle = false) {
-    const fisico = Number(document.getElementById('input-dinero-fisico').value) || 0;
+    let fisico = 0;
+    let observaciones = '';
+
+    if (cajeroActivoNombre === 'Dueño') {
+        fisico = window.tempEfectivoEsperado || 0;
+        observaciones = 'Cierre forzado / supervisado por el Dueño';
+    } else {
+        fisico = Number(document.getElementById('input-dinero-fisico').value) || 0;
+        observaciones = document.getElementById('input-obs-cierre').value.trim();
+    }
+
     const esperado = window.tempEfectivoEsperado || 0;
     const diferencia = fisico - esperado;
-    const observaciones = document.getElementById('input-obs-cierre').value.trim();
     const totales = window.tempTotalesTurno || { efectivo: 0, qr: 0, transferencia: 0 };
     const totalGeneral = totales.efectivo + totales.qr + totales.transferencia;
 
@@ -1929,12 +1965,12 @@ async function confirmarCierreCajaOficial(conDetalle = false) {
         }).eq('id', cajaActualId);
     }
 
-    await mostrarAlerta("¡Caja cerrada y arqueo guardado con éxito!");
+    await mostrarAlerta("¡Turno cerrado con éxito!");
     cerrarModalCierreCaja();
 
     imprimirTicketCierreHTML({
         fecha: new Date().toLocaleString('es-AR'),
-        cajero: cajeroActivoNombre,
+        cajero: cajeroActivoNombre === 'Dueño' ? 'Supervisión Dueño' : cajeroActivoNombre,
         fondoInicial: fondoInicialActual,
         efectivoVentas: totales.efectivo,
         qrVentas: totales.qr,
@@ -1949,6 +1985,7 @@ async function confirmarCierreCajaOficial(conDetalle = false) {
 
     cajaActualId = null;
     cajaAperturaTimestamp = null;
+    await cargarHistorialVentas();
 }
 
 function imprimirTicketCierreHTML(datos) {
@@ -2092,7 +2129,7 @@ async function verificarOForzarAperturaCajaEnVentas() {
         if (cajeroActivoNombre === 'Dueño') {
             if (inputBuscador) {
                 inputBuscador.disabled = false;
-                inputBuscador.placeholder = "⚡ (Caja Cerrada) Pistoleá código o busca...";
+                inputBuscador.placeholder = "⚡ Pistoleá código o busca (ej: 5*codigo)...";
             }
             await actualizarResumenVentasPOS();
             return;
