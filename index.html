@@ -19,7 +19,6 @@
                 <input type="text" id="auth-comercio" placeholder="Nombre de tu Kiosco / Comercio" style="padding:12px; border:1px solid #ccc; border-radius:6px; font-size:15px; width:100%;">
             </div>
             <input type="email" id="auth-email" placeholder="Correo Electrónico" required style="padding:12px; border:1px solid #ccc; border-radius:6px; font-size:15px;">
-            <!-- AGREGADO AUTOCOMPLETE -->
             <input type="password" id="auth-password" placeholder="Contraseña" autocomplete="new-password" required style="padding:12px; border:1px solid #ccc; border-radius:6px; font-size:15px;">
 
             <button type="submit" id="btn-auth-submit" style="background:#007bff; color:white; border:none; padding:12px; font-size:16px; font-weight:bold; border-radius:6px; cursor:pointer;">Ingresar</button>
@@ -52,7 +51,6 @@
 
         <div id="bloque-ingreso-pin-apertura" style="display:none; background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #ddd; margin-bottom:15px;">
             <div style="font-weight:bold; color:#333; margin-bottom:8px;" id="label-cajero-seleccionado">Ingresá tu PIN</div>
-            <!-- AGREGADO AUTOCOMPLETE -->
             <input type="text" id="input-pin-apertura" maxlength="6" placeholder="****" autocomplete="off" style="padding:10px; font-size:22px; text-align:center; width:120px; border:2px solid #007bff; border-radius:6px; outline:none; letter-spacing:5px; -webkit-text-security: disc;">
             <div style="margin-top:10px; display:flex; gap:10px; justify-content:center;">
                 <button onclick="confirmarIngresoTurno()" style="background:#28a745; color:white; border:none; padding:10px 20px; border-radius:6px; font-weight:bold; cursor:pointer;">✔ Entrar a Caja</button>
@@ -80,7 +78,6 @@
         
         <button onclick="cambiarCajeroDesdeModalApertura()" style="background:#6c757d; color:white; border:none; padding:8px; width:100%; border-radius:5px; font-size:14px; cursor:pointer; margin-bottom:8px;">🔄 Cambiar de Cajero / Turno</button>
         
-        <!-- 👑 BOTÓN EXCLUSIVO PARA ENTRAR CON CAJA CERRADA (SOLO DUEÑO) -->
         <button id="btn-ingresar-caja-cerrada" onclick="ingresarConCajaCerradaPorDueno()" style="display:none; background:#ffc107; color:#333; border:none; padding:8px; width:100%; border-radius:5px; font-size:14px; font-weight:bold; cursor:pointer;">👑 Ingresar con Caja Cerrada (Dueño)</button>
     </div>
 </div>
@@ -118,6 +115,38 @@
     </div>
 </div>
 
+<!-- NUEVOS MODALES MODERNOS PARA ALERTAS Y CONFIRMACIONES -->
+<div id="modal-sistema-alerta" class="modal no-print" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:99999; justify-content:center; align-items:center;">
+    <div style="background:white; padding:25px; border-radius:10px; width:100%; max-width:360px; text-align:center; box-shadow:0 4px 15px rgba(0,0,0,0.3);">
+        <h3 id="titulo-alerta" style="margin-bottom:10px; color:#333;">Aviso</h3>
+        <p id="mensaje-alerta" style="color:#666; font-size:14px; margin-bottom:20px; line-height:1.4;"></p>
+        <button onclick="cerrarAlertaCustom()" style="background:#007bff; color:white; border:none; padding:10px 20px; border-radius:5px; font-weight:bold; cursor:pointer; width:100%;">Aceptar</button>
+    </div>
+</div>
+
+<div id="modal-sistema-confirmar" class="modal no-print" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:99999; justify-content:center; align-items:center;">
+    <div style="background:white; padding:25px; border-radius:10px; width:100%; max-width:380px; text-align:center; box-shadow:0 4px 15px rgba(0,0,0,0.3);">
+        <h3 id="titulo-confirmar" style="margin-bottom:10px; color:#333;">Confirmación</h3>
+        <p id="mensaje-confirmar" style="color:#666; font-size:14px; margin-bottom:20px; line-height:1.4;"></p>
+        <div style="display:flex; gap:10px;">
+            <button id="btn-confirmar-si" style="flex:1; background:#28a745; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;">Sí, confirmar</button>
+            <button onclick="cerrarConfirmarCustom(false)" style="flex:1; background:#6c757d; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div id="modal-sistema-prompt" class="modal no-print" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:99999; justify-content:center; align-items:center;">
+    <div style="background:white; padding:25px; border-radius:10px; width:100%; max-width:380px; text-align:center; box-shadow:0 4px 15px rgba(0,0,0,0.3);">
+        <h3 id="titulo-prompt" style="margin-bottom:10px; color:#333;">Ingreso de Datos</h3>
+        <p id="mensaje-prompt" style="color:#666; font-size:14px; margin-bottom:15px; line-height:1.4;"></p>
+        <input type="text" id="input-prompt-valor" style="width:100%; padding:10px; font-size:16px; border:1px solid #ccc; border-radius:5px; margin-bottom:20px; box-sizing:border-box; text-align:center;" autocomplete="off">
+        <div style="display:flex; gap:10px;">
+            <button id="btn-prompt-aceptar" style="flex:1; background:#28a745; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;">Aceptar</button>
+            <button onclick="cerrarPromptCustom(null)" style="flex:1; background:#6c757d; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;">Cancelar</button>
+        </div>
+    </div>
+</div>
+
 <div id="app-principal" style="display:none;">
 
     <header class="no-print">
@@ -147,7 +176,6 @@
     <div class="container no-print">
 
         <section id="seccion-ventas" class="seccion activa">
-            <!-- 📊 PANELES DE RESUMEN DE VENTAS EN TIEMPO REAL -->
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
                 <div style="background: #28a745; color: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
                     <small style="font-weight: bold; font-size: 11px;">TOTAL FACTURADO</small>
@@ -251,7 +279,6 @@
             </div>
         </section>
 
-        <!-- SECCIÓN HISTORIAL / CAJA (UNIFICADA Y CON SCROLL) -->
         <section id="seccion-historial" class="seccion">
             <div class="modulo-stock">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
@@ -433,7 +460,6 @@
             <input type="text" id="vend-nombre" placeholder="Ej: Vendedor1">
             
             <label style="font-size:12px; font-weight:bold; color:#666;">PIN DE ACCESO (4-6 dígitos):</label>
-            <!-- AGREGADO AUTOCOMPLETE -->
             <input type="text" id="vend-pin" maxlength="6" placeholder="Ej: 1234" autocomplete="off" style="padding:12px; border:1px solid #ccc; border-radius:5px; font-size:16px; -webkit-text-security: disc;">
 
             <div style="background:#f8f9fa; border:1px solid #e2e8f0; padding:12px; border-radius:6px; margin:15px 0;">
@@ -468,7 +494,6 @@
             <label style="font-size:12px; font-weight:bold; color:#666;">DIRECCIÓN O LEYENDA:</label>
             <input type="text" id="cfg-direccion" placeholder="Ej: Av. San Martín 1234">
             <label style="font-size:12px; font-weight:bold; color:#666;">PIN DE DUEÑO / ADMINISTRADOR:</label>
-            <!-- AGREGADO AUTOCOMPLETE -->
             <input type="text" id="cfg-pin-dueno" placeholder="Ej: 0000" maxlength="6" autocomplete="off" style="padding:12px; border:1px solid #ccc; border-radius:5px; font-size:16px; -webkit-text-security: disc;">
             <label style="font-size:12px; font-weight:bold; color:#666;">TIPO DE IMPRESORA:</label>
             <select id="cfg-formato-impresora" style="padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px; outline:none;">

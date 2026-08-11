@@ -32,6 +32,70 @@ let configComercio = {
     pinDueno: '0000'
 };
 
+/* --- SISTEMA DE DIÁLOGOS MODERNOS (REEMPLAZO DE ALERT/CONFIRM/PROMPT) --- */
+function mostrarAlerta(mensaje, titulo = "Aviso") {
+    return new Promise((resolve) => {
+        document.getElementById('titulo-alerta').innerText = titulo;
+        document.getElementById('mensaje-alerta').innerText = mensaje;
+        document.getElementById('modal-sistema-alerta').style.display = 'flex';
+        window._resolveAlerta = () => {
+            document.getElementById('modal-sistema-alerta').style.display = 'none';
+            resolve();
+        };
+    });
+}
+function cerrarAlertaCustom() {
+    if (window._resolveAlerta) window._resolveAlerta();
+}
+
+function mostrarConfirmacion(mensaje, titulo = "Confirmación") {
+    return new Promise((resolve) => {
+        document.getElementById('titulo-confirmar').innerText = titulo;
+        document.getElementById('mensaje-confirmar').innerText = mensaje;
+        document.getElementById('modal-sistema-confirmar').style.display = 'flex';
+        
+        const btnSi = document.getElementById('btn-confirmar-si');
+        btnSi.onclick = () => {
+            document.getElementById('modal-sistema-confirmar').style.display = 'none';
+            resolve(true);
+        };
+        window._resolveConfirm = (val) => {
+            document.getElementById('modal-sistema-confirmar').style.display = 'none';
+            resolve(val);
+        };
+    });
+}
+function cerrarConfirmarCustom(val) {
+    if (window._resolveConfirm) window._resolveConfirm(val);
+}
+
+function mostrarPrompt(mensaje, titulo = "Ingreso de Datos", valorInicial = "") {
+    return new Promise((resolve) => {
+        document.getElementById('titulo-prompt').innerText = titulo;
+        document.getElementById('mensaje-prompt').innerText = mensaje;
+        const input = document.getElementById('input-prompt-valor');
+        input.value = valorInicial;
+        document.getElementById('modal-sistema-prompt').style.display = 'flex';
+        setTimeout(() => input.focus(), 100);
+
+        const btnAceptar = document.getElementById('btn-prompt-aceptar');
+        btnAceptar.onclick = () => {
+            const val = input.value;
+            document.getElementById('modal-sistema-prompt').style.display = 'none';
+            resolve(val);
+        };
+        
+        window._resolvePrompt = (val) => {
+            document.getElementById('modal-sistema-prompt').style.display = 'none';
+            resolve(val);
+        };
+    });
+}
+function cerrarPromptCustom(val) {
+    if (window._resolvePrompt) window._resolvePrompt(val);
+}
+/* --------------------------------------------------------------------- */
+
 // SESIÓN
 db.auth.onAuthStateChange(async (event, session) => {
     if (session) {
@@ -146,7 +210,7 @@ async function manejarAuth(e) {
 
     if (modoRegistro) {
         if (!nombreComercio) {
-            alert("Ingresá el nombre de tu comercio.");
+            await mostrarAlerta("Ingresá el nombre de tu comercio.");
             btn.disabled = false;
             btn.innerText = 'Registrar Comercio';
             return;
@@ -155,7 +219,7 @@ async function manejarAuth(e) {
         const { data: perfilExistente } = await db.from('perfiles').select('id, email, comercio_id').eq('email', email).maybeSingle();
 
         if (perfilExistente && perfilExistente.comercio_id) {
-            alert("⚠️ Este correo ya tiene un comercio registrado. Iniciá sesión con tu cuenta.");
+            await mostrarAlerta("⚠️ Este correo ya tiene un comercio registrado. Iniciá sesión con tu cuenta.");
             btn.disabled = false;
             btn.innerText = 'Registrar Comercio';
             return;
@@ -167,14 +231,14 @@ async function manejarAuth(e) {
         if (authError && authError.message.includes("already registered")) {
             const { data: loginData, error: loginError } = await db.auth.signInWithPassword({ email, password });
             if (loginError) {
-                alert("⚠️ Este correo ya está registrado. Ingresá tu contraseña correcta o contactate con administración.");
+                await mostrarAlerta("⚠️ Este correo ya está registrado. Ingresá tu contraseña correcta o contactate con administración.");
                 btn.disabled = false;
                 btn.innerText = 'Registrar Comercio';
                 return;
             }
             userId = loginData.user.id;
         } else if (authError) {
-            alert("Error al registrar: " + authError.message);
+            await mostrarAlerta("Error al registrar: " + authError.message);
             btn.disabled = false;
             btn.innerText = 'Registrar Comercio';
             return;
@@ -198,13 +262,13 @@ async function manejarAuth(e) {
                 localStorage.setItem('cfg_nombre', nombreComercio);
             }
 
-            alert("¡Registro enviado con éxito! El administrador habilitará tu cuenta en breve.");
+            await mostrarAlerta("¡Registro enviado con éxito! El administrador habilitará tu cuenta en breve.");
             await db.auth.signOut();
             location.reload();
         }
     } else {
         const { error } = await db.auth.signInWithPassword({ email, password });
-        if (error) alert("Credenciales incorrectas: " + error.message);
+        if (error) await mostrarAlerta("Credenciales incorrectas: " + error.message);
     }
 
     btn.disabled = false;
@@ -253,7 +317,7 @@ function cancelarSeleccionCajero() {
     document.getElementById('bloque-ingreso-pin-apertura').style.display = 'none';
 }
 
-function confirmarIngresoTurno() {
+async function confirmarIngresoTurno() {
     const pin = document.getElementById('input-pin-apertura').value.trim();
     if (cajeroSeleccionadoTemp && cajeroSeleccionadoTemp.pin === pin) {
         cajeroActivoNombre = cajeroSeleccionadoTemp.nombre;
@@ -265,12 +329,12 @@ function confirmarIngresoTurno() {
         
         verificarOForzarAperturaCaja();
     } else {
-        alert("⚠️ PIN Incorrecto.");
+        await mostrarAlerta("⚠️ PIN Incorrecto.");
     }
 }
 
-function ingresarComoDuenoDirecto() {
-    const pin = prompt("Ingresá tu PIN de Dueño / Administrador:", "");
+async function ingresarComoDuenoDirecto() {
+    const pin = await mostrarPrompt("Ingresá tu PIN de Dueño / Administrador:", "Área Protegida");
     if (pin === configComercio.pinDueno) {
         cajeroActivoNombre = 'Dueño';
         cajeroActivoObjeto = null;
@@ -278,10 +342,9 @@ function ingresarComoDuenoDirecto() {
         aplicarPermisosVisuales();
         document.getElementById('pantalla-apertura-turno').style.display = 'none';
         
-        // 👑 EL DUEÑO ENTRA DIRECTO AL SISTEMA SIN FORZAR CAJA ABIERTA
         cambiarPestaña('ventas');
-    } else if (pin !== null) {
-        alert("⚠️ PIN de Dueño incorrecto.");
+    } else if (pin !== null && pin !== "") {
+        await mostrarAlerta("⚠️ PIN de Dueño incorrecto.");
     }
 }
 
@@ -304,7 +367,7 @@ function aplicarPermisosVisuales() {
     }
 }
 
-function intentarAccesoProtegido(tab) {
+async function intentarAccesoProtegido(tab) {
     if (cajeroActivoNombre === 'Dueño' || perfilUsuario.rol === 'super_admin') {
         if (tab === 'config') abrirModalConfig();
         else cambiarPestaña(tab);
@@ -321,12 +384,12 @@ function intentarAccesoProtegido(tab) {
     if (tienePermiso) {
         cambiarPestaña(tab);
     } else {
-        const pin = prompt(`🔒 Área protegida. Ingresá el PIN de Dueño para acceder a ${tab.toUpperCase()}:`, "");
+        const pin = await mostrarPrompt(`🔒 Área protegida. Ingresá el PIN de Dueño para acceder a ${tab.toUpperCase()}:`, "Seguridad");
         if (pin === configComercio.pinDueno) {
             if (tab === 'config') abrirModalConfig();
             else cambiarPestaña(tab);
-        } else if (pin !== null) {
-            alert("⚠️ Acceso denegado. PIN de Dueño incorrecto.");
+        } else if (pin !== null && pin !== "") {
+            await mostrarAlerta("⚠️ Acceso denegado. PIN de Dueño incorrecto.");
         }
     }
 }
@@ -416,7 +479,10 @@ async function guardarVendedorNuevo() {
     const perm_historial = document.getElementById('chk-perm-historial').checked;
     const perm_vendedores = document.getElementById('chk-perm-vendedores').checked;
 
-    if (!nombre || !pin) return alert("Completá el nombre y el PIN numérico.");
+    if (!nombre || !pin) {
+        await mostrarAlerta("Completá el nombre y el PIN numérico.");
+        return;
+    }
 
     const datos = {
         comercio_id: comercioActualId,
@@ -437,16 +503,17 @@ async function guardarVendedorNuevo() {
     }
 
     if (error) {
-        alert("Error al guardar vendedor.");
+        await mostrarAlerta("Error al guardar vendedor.");
     } else {
-        alert("¡Vendedor guardado con éxito!");
+        await mostrarAlerta("¡Vendedor guardado con éxito!");
         cerrarModalVendedor();
         await cargarVendedores();
     }
 }
 
 async function eliminarVendedor(id) {
-    if (confirm("¿Eliminar a este vendedor?")) {
+    const aceptar = await mostrarConfirmacion("¿Eliminar a este vendedor?");
+    if (aceptar) {
         await db.from('vendedores').delete().eq('id', id);
         await cargarVendedores();
     }
@@ -532,7 +599,7 @@ function cerrarModalConfig() {
     document.getElementById('modal-config').style.display = 'none';
 }
 
-function guardarConfiguracion() {
+async function guardarConfiguracion() {
     const nombre = document.getElementById('cfg-nombre-comercio').value.trim() || 'Kiosco En Línea';
     const direccion = document.getElementById('cfg-direccion').value.trim() || 'Atención al Cliente';
     const pinDueno = document.getElementById('cfg-pin-dueno').value.trim() || '0000';
@@ -550,7 +617,7 @@ function guardarConfiguracion() {
 
     aplicarConfiguracionUI();
     cerrarModalConfig();
-    alert("¡Configuración guardada correctamente!");
+    await mostrarAlerta("¡Configuración guardada correctamente!");
 }
 
 function aplicarConfiguracionUI() {
@@ -604,7 +671,7 @@ async function cargarTablaAdmin() {
 
 async function cambiarEstadoComercio(idComercio, nuevoEstado) {
     await db.from('comercios').update({ estado_suscripcion: nuevoEstado }).eq('id', idComercio);
-    alert(`Estado del comercio actualizado a: ${nuevoEstado.toUpperCase()}`);
+    await mostrarAlerta(`Estado del comercio actualizado a: ${nuevoEstado.toUpperCase()}`);
     cargarTablaAdmin();
 }
 
@@ -915,9 +982,9 @@ function manejarEnter(e) {
     }
 }
 
-function solicitarCantidadYAgregar(producto) {
-    let cant = prompt(`¿Cuántas unidades de "${producto.nombre}" deseas agregar?`, "1");
-    if (cant !== null) {
+async function solicitarCantidadYAgregar(producto) {
+    let cant = await mostrarPrompt(`¿Cuántas unidades de "${producto.nombre}" deseas agregar?`, "Cantidad", "1");
+    if (cant !== null && cant !== "") {
         cant = parseInt(cant);
         if (!isNaN(cant) && cant > 0) {
             agregarAlCarrito(producto, cant);
@@ -930,7 +997,10 @@ function abrirModalCobro() {
         abrirModalAperturaCaja();
         return;
     }
-    if (carrito.length === 0) return alert("El carrito está vacío.");
+    if (carrito.length === 0) {
+        mostrarAlerta("El carrito está vacío.");
+        return;
+    }
 
     document.getElementById('modal-total-pagar').innerText = totalVentaActual;
     document.getElementById('monto-recibido').value = '';
@@ -984,7 +1054,7 @@ async function confirmarVentaFinal() {
     if (medioPagoSeleccionado === 'Efectivo') {
         const recibido = Number(document.getElementById('monto-recibido').value) || 0;
         if (recibido < totalVentaActual) {
-            alert("⚠️ El monto recibido en efectivo es menor al total a pagar.");
+            await mostrarAlerta("⚠️ El monto recibido en efectivo es menor al total a pagar.");
             return;
         }
     }
@@ -1015,7 +1085,7 @@ async function confirmarVentaFinal() {
 
         await db.from('ventas').insert([registroVenta]);
 
-        const opcion = confirm(`¡Venta cobrada por ${cajeroActivoNombre} con éxito!\n\n¿Deseás IMPRIMIR el ticket de compra?`);
+        const opcion = await mostrarConfirmacion(`¡Venta cobrada por ${cajeroActivoNombre} con éxito!\n\n¿Deseás IMPRIMIR el ticket de compra?`, "Venta Exitosa");
 
         if (opcion) {
             imprimirTicketHTML({
@@ -1037,7 +1107,7 @@ async function confirmarVentaFinal() {
         await cargarProductos();
         await actualizarResumenVentasPOS();
     } catch (e) {
-        alert("Error al procesar el cobro.");
+        await mostrarAlerta("Error al procesar el cobro.");
     } finally {
         btn.disabled = false;
         btn.innerText = "✔ COBRAR VENTA";
@@ -1185,7 +1255,6 @@ function actualizarTotalesCaja(total, efectivo, qr, transf) {
 async function actualizarResumenVentasPOS() {
     if (!comercioActualId) return;
 
-    // Si tenemos una caja abierta, filtramos estrictamente desde el momento exacto de apertura de esa caja
     let queryVentas = db.from('ventas')
         .select('*')
         .eq('comercio_id', comercioActualId);
@@ -1193,7 +1262,6 @@ async function actualizarResumenVentasPOS() {
     if (cajaAperturaTimestamp) {
         queryVentas = queryVentas.gte('created_at', cajaAperturaTimestamp);
     } else {
-        // Si no hay caja abierta registrada, no muestra acumulados viejos
         actualizarTotalesPOSUI(0, 0, 0, 0);
         return;
     }
@@ -1290,7 +1358,10 @@ async function guardarProducto() {
     const promo_cant = Number(document.getElementById('p-promo-cant').value) || null;
     const promo_precio = Number(document.getElementById('p-promo-precio').value) || null;
 
-    if (!nombre || !precio) return alert("Completá nombre y precio.");
+    if (!nombre || !precio) {
+        await mostrarAlerta("Completá nombre y precio.");
+        return;
+    }
 
     const datos = {
         user_id: usuarioActual.id,
@@ -1315,9 +1386,10 @@ async function guardarProducto() {
         error = res.error;
     }
 
-    if (error) alert("Error al guardar en la base de datos.");
-    else {
-        alert("¡Producto guardado exitosamente!");
+    if (error) {
+        await mostrarAlerta("Error al guardar en la base de datos.");
+    } else {
+        await mostrarAlerta("¡Producto guardado exitosamente!");
         cerrarModal();
         await cargarCategorias();
         await cargarProductos();
@@ -1328,11 +1400,13 @@ async function eliminarProducto(id) {
     const prod = productosGlobales.find(p => p.id === id);
     if (!prod) return;
 
-    if (confirm(`¿Estás seguro de eliminar "${prod.nombre}"?`)) {
+    const aceptar = await mostrarConfirmacion(`¿Estás seguro de eliminar "${prod.nombre}"?`);
+    if (aceptar) {
         const { error } = await db.from('productos').delete().eq('id', id);
-        if (error) alert("Error al eliminar.");
-        else {
-            alert("Producto eliminado.");
+        if (error) {
+            await mostrarAlerta("Error al eliminar.");
+        } else {
+            await mostrarAlerta("Producto eliminado.");
             await cargarProductos();
         }
     }
@@ -1372,7 +1446,10 @@ function renderizarListaCategoriasModal() {
 
 async function crearCategoria() {
     const nombre = document.getElementById('nueva-cat-nombre').value.trim();
-    if (!nombre) return alert("Ingresá un nombre de categoría.");
+    if (!nombre) {
+        await mostrarAlerta("Ingresá un nombre de categoría.");
+        return;
+    }
 
     const { data: existente } = await db.from('categorias')
         .select('id')
@@ -1381,7 +1458,7 @@ async function crearCategoria() {
         .maybeSingle();
 
     if (existente) {
-        alert("⚠️ La categoría ya existe.");
+        await mostrarAlerta("⚠️ La categoría ya existe.");
         return;
     }
 
@@ -1393,7 +1470,7 @@ async function crearCategoria() {
 
     if (error) {
         console.error("Error al guardar categoría:", error);
-        alert("No se pudo guardar la categoría: " + error.message);
+        await mostrarAlerta("No se pudo guardar la categoría: " + error.message);
     } else {
         document.getElementById('nueva-cat-nombre').value = '';
         await cargarCategorias();
@@ -1407,12 +1484,19 @@ async function aplicarAumentoMasivo() {
     const porcentaje = Number(document.getElementById('aumento-porcentaje').value);
     const redondear = document.getElementById('chk-redondear').checked;
 
-    if (!porcentaje || porcentaje <= 0) return alert("Ingresá un porcentaje de aumento válido.");
+    if (!porcentaje || porcentaje <= 0) {
+        await mostrarAlerta("Ingresá un porcentaje de aumento válido.");
+        return;
+    }
 
     const aActualizar = productosGlobales.filter(p => !categoriaSel || (p.categoria || 'General') === categoriaSel);
-    if (aActualizar.length === 0) return alert("No hay productos en la categoría seleccionada.");
+    if (aActualizar.length === 0) {
+        await mostrarAlerta("No hay productos en la categoría seleccionada.");
+        return;
+    }
 
-    if (!confirm(`¿Confirmás aumentar un ${porcentaje}%?`)) return;
+    const aceptar = await mostrarConfirmacion(`¿Confirmás aumentar un ${porcentaje}%?`);
+    if (!aceptar) return;
 
     for (const prod of aActualizar) {
         let nuevoPrecio = prod.precio * (1 + (porcentaje / 100));
@@ -1426,7 +1510,7 @@ async function aplicarAumentoMasivo() {
         await db.from('productos').update({ precio: nuevoPrecio }).eq('id', prod.id);
     }
 
-    alert("¡Aumento masivo aplicado con éxito!");
+    await mostrarAlerta("¡Aumento masivo aplicado con éxito!");
     document.getElementById('aumento-porcentaje').value = '';
     await cargarProductos();
 }
@@ -1455,7 +1539,10 @@ function descargarPlantillaCSV() {
 
 async function procesarArchivoCSV() {
     const input = document.getElementById('archivo-csv');
-    if (!input.files || input.files.length === 0) return alert("Por favor seleccioná un archivo CSV.");
+    if (!input.files || input.files.length === 0) {
+        await mostrarAlerta("Por favor seleccioná un archivo CSV.");
+        return;
+    }
 
     const archivo = input.files[0];
     const lector = new FileReader();
@@ -1497,7 +1584,7 @@ async function procesarArchivoCSV() {
             }
 
             if (filasValidas.length === 0) {
-                alert("⚠️ No se encontraron productos válidos en el archivo.");
+                await mostrarAlerta("⚠️ No se encontraron productos válidos en el archivo.");
                 btn.disabled = false;
                 btn.innerText = "🚀 Cargar Productos";
                 return;
@@ -1557,14 +1644,14 @@ async function procesarArchivoCSV() {
                 }
             }
 
-            alert(`¡Importación procesada con éxito! Los productos nuevos fueron agregados y los existentes se actualizaron correctamente.`);
+            await mostrarAlerta(`¡Importación procesada con éxito! Los productos nuevos fueron agregados y los existentes se actualizaron correctamente.`);
             cerrarModalImportar();
             
             await cargarCategorias();
             await cargarProductos();
             renderizarTablaStock(productosGlobales);
         } catch (err) {
-            alert("Error al procesar el archivo CSV: " + err.message);
+            await mostrarAlerta("Error al procesar el archivo CSV: " + err.message);
         } finally {
             btn.disabled = false;
             btn.innerText = "🚀 Cargar Productos";
@@ -1575,14 +1662,15 @@ async function procesarArchivoCSV() {
 }
 
 async function eliminarComercioAdmin(idComercio, nombreComercio) {
-    if (confirm(`⚠️ ¿Estás seguro de eliminar por completo el comercio "${nombreComercio}" y todos sus datos asociados? Esta acción no se puede deshacer.`)) {
+    const aceptar = await mostrarConfirmacion(`⚠️ ¿Estás seguro de eliminar por completo el comercio "${nombreComercio}" y todos sus datos asociados? Esta acción no se puede deshacer.`, "Peligro");
+    if (aceptar) {
         await db.from('perfiles').update({ comercio_id: null }).eq('comercio_id', idComercio);
         const { error } = await db.from('comercios').delete().eq('id', idComercio);
         
         if (error) {
-            alert("Error al eliminar el comercio: " + error.message);
+            await mostrarAlerta("Error al eliminar el comercio: " + error.message);
         } else {
-            alert(`El comercio "${nombreComercio}" fue eliminado correctamente.`);
+            await mostrarAlerta(`El comercio "${nombreComercio}" fue eliminado correctamente.`);
             cargarTablaAdmin();
             cargarComerciosSoporte();
         }
@@ -1613,15 +1701,17 @@ function filtrarStockBajo() {
     }
 }
 
-function exportarProductosCSV() {
+async function exportarProductosCSV() {
     if (!comercioActualId) {
-        return alert("⚠️ No hay un comercio seleccionado para exportar.");
+        await mostrarAlerta("⚠️ No hay un comercio seleccionado para exportar.");
+        return;
     }
 
     const productosDelComercio = productosGlobales.filter(p => p.comercio_id === comercioActualId);
 
     if (productosDelComercio.length === 0) {
-        return alert("⚠️ No hay productos en el inventario de este comercio para exportar.");
+        await mostrarAlerta("⚠️ No hay productos en el inventario de este comercio para exportar.");
+        return;
     }
 
     let csvContent = "nombre,categoria,precio,stock,stock_minimo,codigo_barras\n";
@@ -1655,7 +1745,6 @@ function exportarProductosCSV() {
 function abrirModalAperturaCaja() {
     document.getElementById('input-fondo-inicial').value = '';
     
-    // Mostrar u ocultar el botón exclusivo de Dueño según quién esté operando
     const btnDuenoCajaCerrada = document.getElementById('btn-ingresar-caja-cerrada');
     if (btnDuenoCajaCerrada) {
         if (cajeroActivoNombre === 'Dueño') {
@@ -1684,7 +1773,7 @@ function ingresarConCajaCerradaPorDueno() {
 async function confirmarAperturaCajaOficial() {
     const inputFondo = document.getElementById('input-fondo-inicial');
     if (inputFondo.value === "") {
-        alert("⚠️ Por favor ingresá un monto para el fondo inicial (puedes poner 0 si no hay efectivo).");
+        await mostrarAlerta("⚠️ Por favor ingresá un monto para el fondo inicial (puedes poner 0 si no hay efectivo).");
         inputFondo.focus();
         return;
     }
@@ -1692,13 +1781,11 @@ async function confirmarAperturaCajaOficial() {
     const fondo = Number(inputFondo.value) || 0;
     fondoInicialActual = fondo;
 
-    // 🧹 PASO DE LIMPIEZA: Por seguridad, cerramos cualquier caja fantasma o abierta anterior que haya quedado colgada en este comercio
     await db.from('cajas')
         .update({ estado: 'cerrada', closed_at: new Date().toISOString(), observaciones: 'Cierre automático por apertura de nueva caja' })
         .eq('comercio_id', comercioActualId)
         .eq('estado', 'abierta');
 
-    // Crear la nueva caja única abierta
     const datosCaja = {
         comercio_id: comercioActualId,
         vendedor_nombre: cajeroActivoNombre,
@@ -1709,7 +1796,7 @@ async function confirmarAperturaCajaOficial() {
     const { data, error } = await db.from('cajas').insert([datosCaja]).select().single();
 
     if (error) {
-        alert("Error al abrir la caja: " + error.message);
+        await mostrarAlerta("Error al abrir la caja: " + error.message);
     } else {
         cajaActualId = data.id;
         cajaAperturaTimestamp = data.created_at;
@@ -1724,7 +1811,7 @@ async function confirmarAperturaCajaOficial() {
         }
 
         await actualizarResumenVentasPOS();
-        alert(`¡Caja abierta con éxito por ${cajeroActivoNombre} con un fondo de $${fondo}!`);
+        await mostrarAlerta(`¡Caja abierta con éxito por ${cajeroActivoNombre} con un fondo de $${fondo}!`);
     }
 }
 
@@ -1842,7 +1929,7 @@ async function confirmarCierreCajaOficial(conDetalle = false) {
         }).eq('id', cajaActualId);
     }
 
-    alert("¡Caja cerrada y arqueo guardado con éxito!");
+    await mostrarAlerta("¡Caja cerrada y arqueo guardado con éxito!");
     cerrarModalCierreCaja();
 
     imprimirTicketCierreHTML({
@@ -1956,7 +2043,6 @@ function reimprimirCierre(c) {
 }
 
 async function verificarOForzarAperturaCaja() {
-    // Buscar si ya hay una caja abierta para este comercio
     const { data: abierta } = await db.from('cajas')
         .select('*')
         .eq('comercio_id', comercioActualId)
@@ -1982,7 +2068,6 @@ async function verificarOForzarAperturaCaja() {
 async function verificarOForzarAperturaCajaEnVentas() {
     if (!comercioActualId) return;
 
-    // Buscar caja abierta actual
     const { data: abierta } = await db.from('cajas')
         .select('*')
         .eq('comercio_id', comercioActualId)
